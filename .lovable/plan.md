@@ -1,77 +1,107 @@
-# Phase 3 — Polish & QA
+# ThriftBeam Admin Panel — Phase A (Foundation)
 
-Legal/marketing pages (About, Contact, Privacy, Disclaimer) already exist and are theme-consistent. Phase 3 is the final polish pass per the original plan: search refinement, 404 styling, accessibility, and mobile QA — plus light touch-ups on the existing pages where audit findings warrant.
+Per the brief, the build ships in 3 phases with verification between each. This plan covers **Phase A only**. Phases B (content) and C (settings) will be planned after A is verified working.
 
-## 1. Page audits (About, Contact, Privacy, Disclaimer)
+## Guardrails (apply to all 3 phases)
 
-Read each route end-to-end and confirm:
-- Distinct `head()` metadata (title, description, og:title, og:description, canonical) — already in place; verify no copy-paste of home meta.
-- Single `h1`, ordered heading hierarchy, semantic landmarks, alt text on images.
-- All interactive elements (FAQ `<details>`, social links, form fields) keyboard-reachable with visible focus rings.
+- **Do not touch the public site.** No edits to `src/routes/{index,blog.*,tools.*,about,contact,privacy,disclaimer}.tsx`, `__root.tsx`, or any existing component under `src/components/` outside the new `src/components/admin/` folder. Existing tokens in `src/styles.css` are reused, not modified.
+- **No backend.** All data is mock; CRUD mutates in-memory via Zustand. The PHP backend will be wired later.
+- **Same stack.** TanStack Start file routes, TanStack Router, sonner, Recharts, lucide-react, react-hook-form + zod, Tailwind tokens.
+- **Admin theme is light only.** Reuses existing Inter font, `--primary` blue, coral accent. Admin-specific surfaces (`#F8FAFC` content bg, `#E2E8F0` borders) are added as scoped CSS vars (`--admin-bg`, `--admin-border`, `--admin-sidebar`) in `src/styles.css` under a single block — no token rename, no dark-mode work.
+- **Lazy-loaded routes.** Each admin route file is split automatically by the TanStack Router plugin (no exported components in route files).
 
-Specific touch-ups expected:
-- **Contact form**: replace inline `<style>` block with Tailwind utility classes on inputs (border, focus ring uses `ring-primary/30`); add `aria-label` to social icon links instead of generic "Social"; add `htmlFor`/`id` pairing on `FormField`.
-- **Privacy / Disclaimer**: confirm `LegalLayout` TOC anchor links have `focus-visible` styling and that `scroll-mt-24` clears the sticky navbar at mobile widths too (bump to `scroll-mt-28` if needed).
-- **About**: image `loading="lazy"` is set; verify team avatars have meaningful alt (name).
+## Phase A scope
 
-## 2. Search refinement (`SearchModal.tsx`)
+### Routes (file-based, under `src/routes/admin/`)
 
-Current modal works but is thin. Refinements:
-- Add result highlighting — bold the matched substring in title.
-- Group results by category when query is empty (show 2 per top category, "Recent" label).
-- Empty-state copy: add small CTA ("Browse all posts →" linking `/blog`).
-- A11y: add `role="dialog"`, `aria-modal="true"`, `aria-label="Search"`; trap focus inside modal; restore focus to trigger on close.
-- Add small "↵ to open" hint next to ESC kbd; arrow-key navigation through results with Enter to open.
-- Debounce filtering is unnecessary (in-memory) but memoize `results` with `useMemo`.
+```
+src/routes/admin/
+  _authenticated.tsx   → pathless layout: auth guard + AdminShell wrapper
+  _authenticated/
+    index.tsx          → /admin (dashboard)
+  login.tsx            → /admin/login (public)
+```
 
-## 3. 404 styling (`__root.tsx` `NotFoundComponent`)
+Sidebar links for routes that don't exist yet (Posts, Pages, etc.) render but navigate to a placeholder route component shown as "Coming in Phase B/C" — keeps the sidebar truthful without 404s. These placeholders are stub files under `src/routes/admin/_authenticated/` and are replaced with real screens in later phases.
 
-Current 404 is functional but plain. Upgrade:
-- Add a large display-style numeral ("404") with gradient text using brand tokens.
-- Add a secondary action: "Browse articles" linking `/blog` alongside "Back to Home".
-- Add a small "Popular right now" list (3 featured posts from `mockData`) so users land somewhere useful.
-- Add `<head>` meta with `noindex` for the 404 response.
-- Apply same polish to `ErrorComponent` (keep retry + home, add subtle icon).
+### Mock auth
 
-## 4. Accessibility pass (site-wide)
+- `src/lib/adminAuth.ts` — pure functions: `login(email, password)`, `logout()`, `getToken()`, `getUser()`, `recordFailedAttempt()`, `isLockedOut()`.
+- Hardcoded creds: `admin@thriftbeam.com` / `admin123`.
+- On success: write `tb_token` (fake JWT-shaped string: `header.payload.signature` base64) and `tb_user` JSON `{ id, name, email, role: "admin" }` to `localStorage`.
+- Lockout: store `tb_attempts` (array of timestamps) — 5 failures within 15 min triggers lockout; UI shows countdown to oldest-attempt + 15min.
+- Guard in `_authenticated.tsx` via `beforeLoad` reading `localStorage` (client only — `typeof window` check returns `{}` during SSR; client renders auth state after hydration; if no token, `throw redirect({ to: '/admin/login', search: { redirect: location.href } })`).
+- Logout clears storage + navigates to `/admin/login`.
 
-Run a focused audit and fix:
-- **Icon-only buttons**: every `<button>`/`<a>` with just a Lucide icon gets `aria-label` (Navbar search/menu/theme toggle, Footer socials, Contact socials, SearchModal close, mobile hamburger).
-- **Color contrast**: scan for any `text-muted-foreground` on `bg-surface` combos that drop below 4.5:1 — adjust token if needed.
-- **Focus rings**: ensure all interactive elements show `focus-visible:ring-2 focus-visible:ring-primary/40` (buttons, links, form inputs, FAQ summaries, cookie banner buttons).
-- **Skip link**: add a "Skip to content" link in `__root.tsx` that becomes visible on focus and jumps to `<main id="main">`.
-- **Forms**: associate every label/input via `htmlFor`/`id` (Contact form, Newsletter signup).
-- **Headings**: verify no skipped levels on any route.
-- **Reduced motion**: ensure animations respect `prefers-reduced-motion` (announcement bar marquee, hover lifts).
+### Layout (`src/components/admin/`)
 
-## 5. Mobile QA sweep
+- **AdminShell.tsx** — flex container: `<AdminSidebar />` + `<div>{<AdminTopbar />}{<main>{children}</main>}</div>`. Uses `--admin-bg` for content area.
+- **AdminSidebar.tsx** — vertical nav, grouped per brief (Overview / Content / Audience / Marketing / Settings) with uppercase `text-xs` dividers. Active item: `bg-primary text-primary-foreground rounded-xl`. Desktop: fixed `w-64`. Mobile: off-canvas drawer toggled from topbar hamburger (uses existing `Sheet` from `src/components/ui/sheet.tsx`).
+- **AdminTopbar.tsx** — sticky `h-16` white bar: hamburger (mobile) · page title (derived from current route via `useRouterState`) · "View site →" link to `/` (opens in new tab) · user avatar dropdown (uses existing `DropdownMenu`) with Profile (disabled placeholder) and Logout.
 
-Browser-test at 320, 375, 414, 768 px on each route:
-- `/`, `/blog`, `/blog/[slug]`, `/tools`, `/tools/[slug]` (one calculator), `/about`, `/contact`, `/privacy`, `/disclaimer`, and an unmatched URL for 404.
+### Reusable primitives (`src/components/admin/`)
 
-For each, confirm:
-- No horizontal scroll, no overlapping elements.
-- Tap targets ≥ 44×44.
-- Navbar hamburger opens/closes; SearchModal usable on mobile.
-- Cookie banner doesn't trap viewport.
-- Sticky TOC on `LegalLayout` is hidden on mobile (already `hidden lg:block`); confirm prose width and section padding feel right.
-- Charts on calculators don't overflow on 320px.
-- Contact form inputs aren't zoomed by iOS Safari (font-size ≥ 16px on inputs).
+- **StatCard.tsx** — icon, label, big number, delta (+/- % with arrow, green/red).
+- **DataTable.tsx** — generic `<T>` table: columns config, sortable headers (asc/desc), client-side search, pagination (20/page), optional row selection (checkbox + bulk-action slot), empty state slot. Built on existing `src/components/ui/table.tsx`.
+- **Modal.tsx** — thin wrapper over existing `Dialog`.
+- **ConfirmDialog.tsx** — over existing `AlertDialog`: title, description, destructive variant.
+- **Badge.tsx** — admin status badge variants: `published` `draft` `scheduled` `pending` `approved` `spam` `trash`. Built on existing `ui/badge.tsx`.
+- **EmptyState.tsx** — icon, title, body, optional CTA button.
 
-Screenshot deltas reported back in chat.
+### Login page (`/admin/login`)
 
-## Out of scope
+- Centered card on `--admin-bg`. ThriftBeam wordmark at top (text, no asset dependency).
+- Form: email, password (with show/hide toggle), "Remember me" (no-op checkbox), Sign In.
+- react-hook-form + zod schema (email format, min 1 password).
+- "Forgot password?" link → `toast("Password reset coming soon")`.
+- On submit: call `adminAuth.login`; on success → `navigate({ to: search.redirect ?? '/admin' })`; on failure → error toast + increment attempts; if locked out → disable form + show countdown timer (updates every second via `setInterval`).
+- If already authenticated (token present), `beforeLoad` redirects to `/admin`.
 
-- No new routes, content sections, or backend.
-- No design-system rework — only token-aligned polish.
-- No homepage / tools logic changes.
-- No analytics or consent backend (CookieConsent UI only).
+### Dashboard (`/admin`)
 
-## Files expected to change
+- 4 `StatCard`s (responsive grid 1/2/4): Total Posts 47, Total Views 24,891, Subscribers 10,234, Comments Pending 12 — each with mock delta.
+- 2-col section (stacks on mobile):
+  - Recharts `LineChart` — "Visitors last 30 days" (30 mock data points, blue stroke, no fill, light grid).
+  - Recharts `BarChart` — "Top categories by views" (6 mock categories, blue bars).
+- Recent posts table (5 rows) using `DataTable`: Title, Category, Status (Badge), Date, Actions (Edit/View — actions are stubs that toast "Coming soon" until Phase B).
+- Pending comments mini-list (3 items): avatar (initials), name, excerpt, post title, Approve/Reject quick actions (toast feedback, no state change yet).
 
-- `src/components/SearchModal.tsx` — refinement + a11y
-- `src/routes/__root.tsx` — 404 + error polish, skip link, single `<main id="main">`
-- `src/routes/contact.tsx` — Tailwind input classes, label associations, social aria-labels
-- `src/components/LegalLayout.tsx` — focus styles on TOC, scroll-margin tweak
-- `src/components/Navbar.tsx`, `src/components/Footer.tsx`, `src/components/NewsletterSignup.tsx`, `src/components/CookieConsent.tsx` — aria-labels, focus rings, label associations as needed
-- `src/styles.css` — reduced-motion media query if any animation lacks it
+### Mock data (Phase A subset)
+
+`src/lib/mockAdminData.ts` — start with what the dashboard needs; expand in B/C:
+- `mockPosts` (10 sample posts for the recent-posts table + sidebar counts — full 47 in Phase B).
+- `mockPendingComments` (3).
+- `mockAnalytics` — 30 days of visitor counts + 6 category buckets.
+- `mockDashboardStats` — the 4 KPI numbers.
+
+### Verification checklist (run before declaring Phase A done)
+
+1. `/admin/login` renders; submitting wrong creds shows error toast and increments attempts; 5 wrong attempts disables the form with a visible countdown.
+2. Correct creds redirect to `/admin`; `localStorage.tb_token` and `tb_user` are set.
+3. Visiting `/admin` (or any `/admin/*`) without a token redirects to `/admin/login?redirect=...`; after login, redirects back to original URL.
+4. Dashboard shows 4 stat cards, both charts render, recent posts table and pending comments list show mock data.
+5. Sidebar groups + active highlight work on desktop; hamburger drawer works at the current 390px viewport.
+6. Logout from avatar dropdown clears storage and returns to login.
+7. Public site smoke test: `/`, `/blog`, `/blog/$slug`, `/tools/$slug`, `/about`, `/contact` all still hydrate with no console errors (no regressions from the new shared `styles.css` additions).
+8. No edits to any pre-existing file outside `src/styles.css` (scoped admin-var block only) and `src/routeTree.gen.ts` (auto-regenerated).
+
+## Files created in Phase A
+
+- `src/routes/admin/login.tsx`
+- `src/routes/admin/_authenticated.tsx`
+- `src/routes/admin/_authenticated/index.tsx`
+- `src/routes/admin/_authenticated/{posts,pages,comments,media,users,newsletter,seo,analytics,integrations,cookies,cache,theme,backup,maintenance,pwa,tools,settings,notifications}.tsx` — stub "Coming soon" pages so sidebar links resolve
+- `src/components/admin/{AdminShell,AdminSidebar,AdminTopbar,StatCard,DataTable,Modal,ConfirmDialog,Badge,EmptyState}.tsx`
+- `src/lib/adminAuth.ts`
+- `src/lib/mockAdminData.ts`
+
+## Files edited in Phase A
+
+- `src/styles.css` — append a single block of admin-scoped CSS vars (`--admin-bg`, `--admin-border`, `--admin-sidebar`). No existing token changes.
+- `src/routeTree.gen.ts` — auto-regenerated by the plugin (not hand-edited).
+
+## Out of scope for Phase A
+
+Posts CRUD + rich editor, Pages/Comments/Media, all Settings screens, Users, Newsletter, SEO/Analytics/Integrations, Cookies/Cache/Theme/Backup/Maintenance/PWA/Tools/Notifications. Sidebar entries exist but point at "Coming soon" stubs.
+
+After Phase A is verified working, I'll plan Phase B (content management) and then Phase C (settings).
