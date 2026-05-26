@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { formatUSD } from "@/lib/mockData";
-import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE } from "./shared";
+import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE, ClientOnly } from "./shared";
 
 const COLORS = ["#2563EB", "#FB7185", "#10B981"];
 
@@ -35,15 +35,17 @@ export default function BudgetCalculator() {
         <ResultRow label="Total spent" value={formatUSD(total)} />
         <ResultRow label="Remaining" value={formatUSD(remaining)} highlight={remaining >= 0 ? "good" : "bad"} />
         <div className="mt-2 w-full h-56 min-h-[224px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                {data.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-              </Pie>
-              <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ color: "#0F172A", fontSize: 13 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <ClientOnly>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                  {data.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
+                <Legend wrapperStyle={{ color: "#0F172A", fontSize: 13 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ClientOnly>
         </div>
         <div className="pt-3 border-t border-border space-y-1.5 text-sm">
           <div className="font-semibold mb-1 text-foreground">50/30/20 target</div>
