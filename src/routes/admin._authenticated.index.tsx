@@ -80,7 +80,7 @@ function DashboardPage() {
               <XAxis dataKey="date" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
               <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-              <Line type="monotone" dataKey="visitors" stroke="var(--color-primary)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="visitors" stroke="#2563EB" strokeWidth={2.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -92,7 +92,7 @@ function DashboardPage() {
               <XAxis dataKey="category" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={50} />
               <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-              <Bar dataKey="views" fill="var(--color-primary)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="views" fill="#2563EB" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
