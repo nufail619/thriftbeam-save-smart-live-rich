@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { FileText, Plus, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, Plus, Pencil, Trash2, MoreVertical, AlertTriangle, Loader2 } from "lucide-react";
 import EmptyState from "@/components/admin/EmptyState";
 import AdminBadge from "@/components/admin/Badge";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -11,9 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePages, pagesApi, slugify } from "@/lib/adminStore";
+import { pagesApi } from "@/lib/api/pages";
 import { toast } from "sonner";
-import type { AdminPageTemplate } from "@/lib/mockAdminData";
+import type { AdminPage, AdminPageTemplate } from "@/lib/mockAdminData";
 
 export const Route = createFileRoute("/admin/_authenticated/pages/")({
   component: PagesPage,
@@ -21,33 +22,56 @@ export const Route = createFileRoute("/admin/_authenticated/pages/")({
 
 const TEMPLATES: AdminPageTemplate[] = ["default", "full-width", "landing", "legal"];
 
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 80);
+}
+
 function PagesPage() {
-  const pages = usePages();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["pages"],
+    queryFn: () => pagesApi.list(),
+  });
+  const pages: AdminPage[] = data ?? [];
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["pages"] });
+
   const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [template, setTemplate] = useState<AdminPageTemplate>("default");
+  const [creating, setCreating] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const createPage = () => {
-    if (!title.trim()) {
-      toast.error("Title required");
-      return;
+  const removeMut = useMutation({
+    mutationFn: (id: string) => pagesApi.remove(id),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const createPage = async () => {
+    if (!title.trim()) { toast.error("Title required"); return; }
+    setCreating(true);
+    try {
+      const page = await pagesApi.create({
+        title,
+        slug: slug || slugify(title),
+        template,
+        status: "draft",
+        content: `<h1>${title}</h1><p>Start writing…</p>`,
+        seoTitle: title,
+        seoDescription: "",
+      });
+      setNewOpen(false);
+      setTitle(""); setSlug(""); setTemplate("default");
+      toast.success("Page created");
+      invalidate();
+      if (page?.id) navigate({ to: "/admin/pages/$id/edit", params: { id: page.id } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCreating(false);
     }
-    const page = pagesApi.create({
-      title,
-      slug: slug || slugify(title),
-      template,
-      status: "draft",
-      content: `<h1>${title}</h1><p>Start writing…</p>`,
-      seoTitle: title,
-      seoDescription: "",
-    });
-    setNewOpen(false);
-    setTitle(""); setSlug(""); setTemplate("default");
-    toast.success("Page created");
-    navigate({ to: "/admin/pages/$id/edit", params: { id: page.id } });
   };
 
   return (
@@ -66,8 +90,17 @@ function PagesPage() {
         </button>
       </div>
 
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load pages: {(error as Error).message}</span>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-card">
-        {pages.length === 0 ? (
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading pages…</div>
+        ) : pages.length === 0 ? (
           <div className="p-6">
             <EmptyState icon={FileText} title="No pages yet" />
           </div>
@@ -150,7 +183,10 @@ function PagesPage() {
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setNewOpen(false)} className="h-9 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted">Cancel</button>
-            <button onClick={createPage} className="h-9 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Create</button>
+            <button disabled={creating} onClick={createPage} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+              {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Create
+            </button>
           </div>
         </div>
       </Modal>
@@ -162,8 +198,10 @@ function PagesPage() {
         description="This will permanently delete the page."
         destructive
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (confirmId) { pagesApi.remove(confirmId); toast.success("Deleted"); }
+        onConfirm={async () => {
+          if (confirmId) {
+            try { await removeMut.mutateAsync(confirmId); toast.success("Deleted"); } catch {/* toast handled */}
+          }
           setConfirmId(null);
         }}
       />
