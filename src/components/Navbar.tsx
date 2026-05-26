@@ -41,7 +41,7 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
           scrolled ? "border-b border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "border-b border-transparent"
         }`}
       >
-        <div className="container-page flex h-16 items-center justify-between gap-4">
+        <div className="container-page flex h-16 items-center justify-between gap-4 lg:justify-start">
           <Link to="/" className="flex items-center gap-1 font-bold text-xl tracking-tight" aria-label="ThriftBeam home">
             <span className="text-foreground">Thrift</span>
             <span className="text-primary">Beam</span>
