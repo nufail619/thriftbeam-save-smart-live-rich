@@ -59,7 +59,7 @@ function BlogPage() {
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-10">
         <div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {paged.map((p) => <PostCard key={p.slug} post={p} />)}
           </div>
           {paged.length === 0 && (

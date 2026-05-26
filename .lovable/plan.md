@@ -1,57 +1,86 @@
-# Light-Only Theme Conversion
+# Desktop Full-Width Layout
 
-Strip dark mode entirely and apply the new premium blue palette across the whole site. Layouts and content stay the same — only colors and a few section backgrounds change.
+Make desktop (≥1024px) span edge-to-edge with comfortable padding. Mobile (<768px) and tablet (768–1023px) stay byte-identical.
 
-## 1. Kill dark mode
+## 1. Container utility (`src/styles.css`)
 
-- `src/styles.css`: remove the `.dark { ... }` token block and any `dark:` variants. Keep only the `:root` token set.
-- `src/routes/__root.tsx`: remove the inline `themeScript` that reads `tb_theme` and toggles `.dark` on `<html>`.
-- `src/components/Navbar.tsx`: remove the theme toggle button (Sun/Moon icon) and any `tb_theme` localStorage read/write. Drop related state and imports.
-- Global search-and-remove of any remaining `dark:` Tailwind variants and `localStorage.*tb_theme` references across `src/`.
+Update `.container-page` so the 1200px cap only applies below `lg`:
 
-## 2. New design tokens (`src/styles.css`, `:root` only)
+```css
+@utility container-page {
+  width: 100%;
+  max-width: 1200px;          /* mobile + tablet keep current cap */
+  margin-inline: auto;
+  padding-inline: 1.25rem;    /* unchanged mobile */
+}
+@media (min-width: 768px) {   /* unchanged tablet */
+  .container-page { padding-inline: 2rem; }
+}
+@media (min-width: 1024px) {  /* desktop: drop cap, widen padding */
+  .container-page { max-width: none; padding-inline: 3rem; }
+}
+@media (min-width: 1280px) {
+  .container-page { padding-inline: 4rem; }
+}
+@media (min-width: 1536px) {
+  .container-page { padding-inline: 5rem; }
+}
+```
 
-Replace existing color tokens with oklch equivalents of:
+Add a sibling utility for reading-heavy bodies so prose still caps at ~768px:
 
-- `--background` #FFFFFF
-- `--foreground` #0F172A
-- `--muted-foreground` #64748B
-- `--primary` #2563EB / `--primary-foreground` #FFFFFF
-- `--accent` (coral) #FB7185 / `--accent-foreground` #FFFFFF
-- `--surface` #F8FAFC, `--surface-2` #F1F5F9 (new tokens)
-- `--card` #FFFFFF, `--card-foreground` #0F172A
-- `--border` #E2E8F0, `--input` #E2E8F0, `--ring` #2563EB
-- `--success` #10B981, `--warning` #F59E0B, `--destructive` #EF4444
-- Shadows: `--shadow-card` `0 1px 3px rgba(0,0,0,0.05)`, `--shadow-card-hover` `0 8px 24px rgba(37,99,235,0.08)`
-- Hero mesh utility (`hero-mesh`) rewritten to a soft white → light-blue → very-light-coral radial gradient on white.
+```css
+@utility prose-container {
+  width: 100%;
+  max-width: 768px;
+  margin-inline: auto;
+}
+```
 
-## 3. Component recolor (no layout changes)
+Because every section (navbar, hero, category grid, featured, latest, tools teaser, newsletter band, footer) already uses `container-page`, no per-section markup change is needed for them to go edge-to-edge on desktop.
 
-- **Hero (`src/routes/index.tsx`)**: white background + new soft mesh; headline `#0F172A`; subtext + trust badges `#64748B`; primary CTA blue, secondary CTA white/blue-outline.
-- **Tools teaser band**: switch from dark navy to `--surface` (#F8FAFC); card gets `border-l-4 border-primary`, dark text, blue button.
-- **Footer (`src/components/Footer.tsx`)**: background `--surface-2` (#F1F5F9), text `#0F172A`, muted links `#64748B`, social icons in blue, top border `#E2E8F0`.
-- **Newsletter band**: pale coral `#FFE4E6` background, dark text, solid coral button.
-- **CookieConsent**: white card, dark text, primary blue button + white/blue-outline secondary.
-- **AnnouncementBar**: keep slim; recolor to blue background with white text (or surface-2 with blue text — pick the one that reads cleaner against the new white nav).
-- **Cards (PostCard, CategoryCard, calculator cards, etc.)**: white bg, `1px solid var(--border)`, `--shadow-card`; hover swaps to `--shadow-card-hover` and `border-color: var(--primary)`.
-- **Buttons (shadcn `button.tsx` variants)**:
-  - `default` → blue solid, white text
-  - `outline` → white bg, blue border, blue text
-  - add/repurpose an `accent` variant → coral solid, white text (used sparingly on CTAs)
-- **Blog detail, About, Contact, Legal, Tools, 404**: recolor any remaining dark surfaces or `bg-slate-900`-style classes to `--surface` / white. No structural edits.
+## 2. Grid adjustments
 
-## 4. Section rhythm
+Bump column counts at `2xl` (1536px+) only — `lg`/`xl` keep current 3-col layout, mobile/tablet untouched.
 
-Across homepage, blog index, tools index, and about: alternate section backgrounds white → `--surface` → white → `--surface` so separation comes from tone, not dark blocks. Implement by setting `bg-background` / `bg-[hsl(var(--surface))]` (or a `bg-surface` utility) on existing section wrappers — no markup restructuring.
+- Category grid (homepage + `/blog` sidebar if present): `md:grid-cols-2 lg:grid-cols-3` → add `2xl:grid-cols-4`.
+- Latest articles grid: same change, `lg:grid-cols-3 2xl:grid-cols-4`.
+- Featured posts: leave at 3 columns.
+- Footer: leave at 4 columns (already `lg:grid-cols-4`).
 
-## 5. QA pass
+Files to touch (grid classes only, no structural changes):
+- `src/routes/index.tsx` — category grid + latest articles grid
+- `src/routes/blog.index.tsx` — post grid (apply same `2xl:grid-cols-4` bump)
+- `src/routes/tools.index.tsx` — only if it uses a 3-col grid; mirror the bump
 
-- Grep for `dark:`, `tb_theme`, `bg-slate-900`, `bg-[#0F172A]`, `text-white` on non-CTA elements, and the `Moon`/`Sun` lucide imports — fix any stragglers.
-- Walk each route at 390px and desktop to confirm contrast, hover states, and that no section is still dark.
-- Confirm build passes and preview renders without the prior SSR error (the `themeScript` removal also eliminates a hydration mismatch risk).
+## 3. Reading-heavy pages keep narrow prose
+
+On these routes the outer section wrappers stay `container-page` (now full-width on desktop), but the prose body is wrapped in `prose-container` so line length stays comfortable:
+
+- `src/routes/blog.$slug.tsx` — wrap the article body / TOC layout's text column with `prose-container` (sticky TOC stays in the side column of the full-width section).
+- `src/routes/privacy.tsx`, `src/routes/disclaimer.tsx`, `src/routes/about.tsx` — wrap main prose block with `prose-container`. Hero/section bands above/below remain edge-to-edge.
+- `LegalLayout.tsx` — apply `prose-container` to its content slot.
+
+## 4. Navbar stretch
+
+`src/components/Navbar.tsx` already uses `container-page` for the inner row, so it automatically becomes edge-to-edge on desktop. Adjust the inner flex so nav links sit centered while logo/icons hug the edges on `lg+`:
+
+```tsx
+<div className="container-page flex h-16 items-center gap-4">
+  <Link …>Logo</Link>                                 {/* left */}
+  <nav className="hidden md:flex items-center gap-1 lg:mx-auto">…</nav>  {/* centered on lg+ */}
+  <div className="flex items-center gap-1 lg:ml-auto">…</div>             {/* right */}
+</div>
+```
+
+On mobile/tablet the existing `justify-between` behavior is preserved by replacing it with `gap-4` + `ml-auto` on the icons cluster (icons stay right-aligned because nav is hidden below `md`, and on `md` `lg:mx-auto`/`lg:ml-auto` don't apply so layout is unchanged).
+
+## 5. QA
+
+- Visual check at 320, 414, 768 (must look identical to current).
+- Visual check at 1024, 1440, 1920 (edge-to-edge with growing side padding; grids reflow at 1536).
+- Walk `/`, `/blog`, `/blog/$slug`, `/tools`, `/about`, `/privacy`, `/disclaimer`, `/contact`.
 
 ## Out of scope
 
-- No content, copy, route, or component-structure changes.
-- No backend or data changes.
-- Logo wordmark stays "Thrift" dark + "Beam" in the new primary blue (was indigo).
+No color, copy, component, route, or backend changes.

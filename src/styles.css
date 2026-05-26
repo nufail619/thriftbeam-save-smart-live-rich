@@ -131,6 +131,21 @@
 @media (min-width: 768px) {
   .container-page { padding-inline: 2rem; }
 }
+@media (min-width: 1024px) {
+  .container-page { max-width: none; padding-inline: 3rem; }
+}
+@media (min-width: 1280px) {
+  .container-page { padding-inline: 4rem; }
+}
+@media (min-width: 1536px) {
+  .container-page { padding-inline: 5rem; }
+}
+
+@utility prose-container {
+  width: 100%;
+  max-width: 768px;
+  margin-inline: auto;
+}
 
 @utility section-pad {
   padding-block: 3rem;
