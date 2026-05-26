@@ -97,6 +97,73 @@ export default function AdminTopbar() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <Bell className="h-4 w-4" />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 p-0">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+              <span className="text-sm font-semibold">Notifications</span>
+              {unread > 0 && (
+                <button
+                  type="button"
+                  onClick={() => notificationsApi.markAllRead()}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {recent.length === 0 ? (
+                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                recent.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => notificationsApi.markRead(n.id)}
+                    className={`w-full text-left px-3 py-2.5 border-b border-border last:border-0 hover:bg-muted transition-colors ${
+                      !n.read ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.read && (
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      )}
+                      <div className={`flex-1 min-w-0 ${n.read ? "pl-4" : ""}`}>
+                        <p className="text-sm font-medium truncate">{n.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.body}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="border-t border-border">
+              <Link
+                to="/admin/notifications"
+                className="block px-3 py-2 text-center text-xs font-medium text-primary hover:bg-muted"
+              >
+                View all notifications
+              </Link>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
               aria-label="Account menu"
               className="inline-flex items-center gap-2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
