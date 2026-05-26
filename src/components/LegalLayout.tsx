@@ -29,7 +29,7 @@ export default function LegalLayout({
         <div className="prose-tb prose-container lg:mx-0 space-y-10">
 
           {sections.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24">
+            <section key={s.id} id={s.id} className="scroll-mt-28">
               <h2 className="text-2xl font-bold">{s.title}</h2>
               <div className="mt-3 text-foreground/85 leading-relaxed space-y-3">{s.body}</div>
             </section>
@@ -41,7 +41,7 @@ export default function LegalLayout({
             <ul className="space-y-1.5 text-sm">
               {sections.map((s) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} className="text-muted-foreground hover:text-primary block py-0.5">{s.title}</a>
+                  <a href={`#${s.id}`} className="text-muted-foreground hover:text-primary block py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{s.title}</a>
                 </li>
               ))}
             </ul>
