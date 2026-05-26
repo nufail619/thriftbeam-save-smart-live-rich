@@ -21,6 +21,25 @@ import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminAuthenticatedRouteImport } from './routes/admin._authenticated'
 import { Route as AdminAuthenticatedIndexRouteImport } from './routes/admin._authenticated.index'
+import { Route as AdminAuthenticatedUsersRouteImport } from './routes/admin._authenticated.users'
+import { Route as AdminAuthenticatedToolsRouteImport } from './routes/admin._authenticated.tools'
+import { Route as AdminAuthenticatedThemeRouteImport } from './routes/admin._authenticated.theme'
+import { Route as AdminAuthenticatedSettingsRouteImport } from './routes/admin._authenticated.settings'
+import { Route as AdminAuthenticatedSeoRouteImport } from './routes/admin._authenticated.seo'
+import { Route as AdminAuthenticatedPwaRouteImport } from './routes/admin._authenticated.pwa'
+import { Route as AdminAuthenticatedPostsRouteImport } from './routes/admin._authenticated.posts'
+import { Route as AdminAuthenticatedPagesRouteImport } from './routes/admin._authenticated.pages'
+import { Route as AdminAuthenticatedNotificationsRouteImport } from './routes/admin._authenticated.notifications'
+import { Route as AdminAuthenticatedNewsletterRouteImport } from './routes/admin._authenticated.newsletter'
+import { Route as AdminAuthenticatedMediaRouteImport } from './routes/admin._authenticated.media'
+import { Route as AdminAuthenticatedMaintenanceRouteImport } from './routes/admin._authenticated.maintenance'
+import { Route as AdminAuthenticatedIntegrationsRouteImport } from './routes/admin._authenticated.integrations'
+import { Route as AdminAuthenticatedCookiesRouteImport } from './routes/admin._authenticated.cookies'
+import { Route as AdminAuthenticatedCommentsRouteImport } from './routes/admin._authenticated.comments'
+import { Route as AdminAuthenticatedCacheRouteImport } from './routes/admin._authenticated.cache'
+import { Route as AdminAuthenticatedBackupRouteImport } from './routes/admin._authenticated.backup'
+import { Route as AdminAuthenticatedAnalyticsRouteImport } from './routes/admin._authenticated.analytics'
+import { Route as AdminAuthenticatedPostsNewRouteImport } from './routes/admin._authenticated.posts.new'
 
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
@@ -82,6 +101,111 @@ const AdminAuthenticatedIndexRoute = AdminAuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminAuthenticatedRoute,
 } as any)
+const AdminAuthenticatedUsersRoute = AdminAuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedToolsRoute = AdminAuthenticatedToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedThemeRoute = AdminAuthenticatedThemeRouteImport.update({
+  id: '/theme',
+  path: '/theme',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedSettingsRoute =
+  AdminAuthenticatedSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedSeoRoute = AdminAuthenticatedSeoRouteImport.update({
+  id: '/seo',
+  path: '/seo',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedPwaRoute = AdminAuthenticatedPwaRouteImport.update({
+  id: '/pwa',
+  path: '/pwa',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedPostsRoute = AdminAuthenticatedPostsRouteImport.update({
+  id: '/posts',
+  path: '/posts',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedPagesRoute = AdminAuthenticatedPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedNotificationsRoute =
+  AdminAuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedNewsletterRoute =
+  AdminAuthenticatedNewsletterRouteImport.update({
+    id: '/newsletter',
+    path: '/newsletter',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedMediaRoute = AdminAuthenticatedMediaRouteImport.update({
+  id: '/media',
+  path: '/media',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedMaintenanceRoute =
+  AdminAuthenticatedMaintenanceRouteImport.update({
+    id: '/maintenance',
+    path: '/maintenance',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedIntegrationsRoute =
+  AdminAuthenticatedIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedCookiesRoute =
+  AdminAuthenticatedCookiesRouteImport.update({
+    id: '/cookies',
+    path: '/cookies',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedCommentsRoute =
+  AdminAuthenticatedCommentsRouteImport.update({
+    id: '/comments',
+    path: '/comments',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedCacheRoute = AdminAuthenticatedCacheRouteImport.update({
+  id: '/cache',
+  path: '/cache',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
+const AdminAuthenticatedBackupRoute =
+  AdminAuthenticatedBackupRouteImport.update({
+    id: '/backup',
+    path: '/backup',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedAnalyticsRoute =
+  AdminAuthenticatedAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedPostsNewRoute =
+  AdminAuthenticatedPostsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AdminAuthenticatedPostsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,7 +219,26 @@ export interface FileRoutesByFullPath {
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog/': typeof BlogIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/admin/analytics': typeof AdminAuthenticatedAnalyticsRoute
+  '/admin/backup': typeof AdminAuthenticatedBackupRoute
+  '/admin/cache': typeof AdminAuthenticatedCacheRoute
+  '/admin/comments': typeof AdminAuthenticatedCommentsRoute
+  '/admin/cookies': typeof AdminAuthenticatedCookiesRoute
+  '/admin/integrations': typeof AdminAuthenticatedIntegrationsRoute
+  '/admin/maintenance': typeof AdminAuthenticatedMaintenanceRoute
+  '/admin/media': typeof AdminAuthenticatedMediaRoute
+  '/admin/newsletter': typeof AdminAuthenticatedNewsletterRoute
+  '/admin/notifications': typeof AdminAuthenticatedNotificationsRoute
+  '/admin/pages': typeof AdminAuthenticatedPagesRoute
+  '/admin/posts': typeof AdminAuthenticatedPostsRouteWithChildren
+  '/admin/pwa': typeof AdminAuthenticatedPwaRoute
+  '/admin/seo': typeof AdminAuthenticatedSeoRoute
+  '/admin/settings': typeof AdminAuthenticatedSettingsRoute
+  '/admin/theme': typeof AdminAuthenticatedThemeRoute
+  '/admin/tools': typeof AdminAuthenticatedToolsRoute
+  '/admin/users': typeof AdminAuthenticatedUsersRoute
   '/admin/': typeof AdminAuthenticatedIndexRoute
+  '/admin/posts/new': typeof AdminAuthenticatedPostsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -108,7 +251,26 @@ export interface FileRoutesByTo {
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog': typeof BlogIndexRoute
   '/tools': typeof ToolsIndexRoute
+  '/admin/analytics': typeof AdminAuthenticatedAnalyticsRoute
+  '/admin/backup': typeof AdminAuthenticatedBackupRoute
+  '/admin/cache': typeof AdminAuthenticatedCacheRoute
+  '/admin/comments': typeof AdminAuthenticatedCommentsRoute
+  '/admin/cookies': typeof AdminAuthenticatedCookiesRoute
+  '/admin/integrations': typeof AdminAuthenticatedIntegrationsRoute
+  '/admin/maintenance': typeof AdminAuthenticatedMaintenanceRoute
+  '/admin/media': typeof AdminAuthenticatedMediaRoute
+  '/admin/newsletter': typeof AdminAuthenticatedNewsletterRoute
+  '/admin/notifications': typeof AdminAuthenticatedNotificationsRoute
+  '/admin/pages': typeof AdminAuthenticatedPagesRoute
+  '/admin/posts': typeof AdminAuthenticatedPostsRouteWithChildren
+  '/admin/pwa': typeof AdminAuthenticatedPwaRoute
+  '/admin/seo': typeof AdminAuthenticatedSeoRoute
+  '/admin/settings': typeof AdminAuthenticatedSettingsRoute
+  '/admin/theme': typeof AdminAuthenticatedThemeRoute
+  '/admin/tools': typeof AdminAuthenticatedToolsRoute
+  '/admin/users': typeof AdminAuthenticatedUsersRoute
   '/admin': typeof AdminAuthenticatedIndexRoute
+  '/admin/posts/new': typeof AdminAuthenticatedPostsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -123,7 +285,26 @@ export interface FileRoutesById {
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog/': typeof BlogIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/admin/_authenticated/analytics': typeof AdminAuthenticatedAnalyticsRoute
+  '/admin/_authenticated/backup': typeof AdminAuthenticatedBackupRoute
+  '/admin/_authenticated/cache': typeof AdminAuthenticatedCacheRoute
+  '/admin/_authenticated/comments': typeof AdminAuthenticatedCommentsRoute
+  '/admin/_authenticated/cookies': typeof AdminAuthenticatedCookiesRoute
+  '/admin/_authenticated/integrations': typeof AdminAuthenticatedIntegrationsRoute
+  '/admin/_authenticated/maintenance': typeof AdminAuthenticatedMaintenanceRoute
+  '/admin/_authenticated/media': typeof AdminAuthenticatedMediaRoute
+  '/admin/_authenticated/newsletter': typeof AdminAuthenticatedNewsletterRoute
+  '/admin/_authenticated/notifications': typeof AdminAuthenticatedNotificationsRoute
+  '/admin/_authenticated/pages': typeof AdminAuthenticatedPagesRoute
+  '/admin/_authenticated/posts': typeof AdminAuthenticatedPostsRouteWithChildren
+  '/admin/_authenticated/pwa': typeof AdminAuthenticatedPwaRoute
+  '/admin/_authenticated/seo': typeof AdminAuthenticatedSeoRoute
+  '/admin/_authenticated/settings': typeof AdminAuthenticatedSettingsRoute
+  '/admin/_authenticated/theme': typeof AdminAuthenticatedThemeRoute
+  '/admin/_authenticated/tools': typeof AdminAuthenticatedToolsRoute
+  '/admin/_authenticated/users': typeof AdminAuthenticatedUsersRoute
   '/admin/_authenticated/': typeof AdminAuthenticatedIndexRoute
+  '/admin/_authenticated/posts/new': typeof AdminAuthenticatedPostsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -139,7 +320,26 @@ export interface FileRouteTypes {
     | '/tools/$slug'
     | '/blog/'
     | '/tools/'
+    | '/admin/analytics'
+    | '/admin/backup'
+    | '/admin/cache'
+    | '/admin/comments'
+    | '/admin/cookies'
+    | '/admin/integrations'
+    | '/admin/maintenance'
+    | '/admin/media'
+    | '/admin/newsletter'
+    | '/admin/notifications'
+    | '/admin/pages'
+    | '/admin/posts'
+    | '/admin/pwa'
+    | '/admin/seo'
+    | '/admin/settings'
+    | '/admin/theme'
+    | '/admin/tools'
+    | '/admin/users'
     | '/admin/'
+    | '/admin/posts/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -152,7 +352,26 @@ export interface FileRouteTypes {
     | '/tools/$slug'
     | '/blog'
     | '/tools'
+    | '/admin/analytics'
+    | '/admin/backup'
+    | '/admin/cache'
+    | '/admin/comments'
+    | '/admin/cookies'
+    | '/admin/integrations'
+    | '/admin/maintenance'
+    | '/admin/media'
+    | '/admin/newsletter'
+    | '/admin/notifications'
+    | '/admin/pages'
+    | '/admin/posts'
+    | '/admin/pwa'
+    | '/admin/seo'
+    | '/admin/settings'
+    | '/admin/theme'
+    | '/admin/tools'
+    | '/admin/users'
     | '/admin'
+    | '/admin/posts/new'
   id:
     | '__root__'
     | '/'
@@ -166,7 +385,26 @@ export interface FileRouteTypes {
     | '/tools/$slug'
     | '/blog/'
     | '/tools/'
+    | '/admin/_authenticated/analytics'
+    | '/admin/_authenticated/backup'
+    | '/admin/_authenticated/cache'
+    | '/admin/_authenticated/comments'
+    | '/admin/_authenticated/cookies'
+    | '/admin/_authenticated/integrations'
+    | '/admin/_authenticated/maintenance'
+    | '/admin/_authenticated/media'
+    | '/admin/_authenticated/newsletter'
+    | '/admin/_authenticated/notifications'
+    | '/admin/_authenticated/pages'
+    | '/admin/_authenticated/posts'
+    | '/admin/_authenticated/pwa'
+    | '/admin/_authenticated/seo'
+    | '/admin/_authenticated/settings'
+    | '/admin/_authenticated/theme'
+    | '/admin/_authenticated/tools'
+    | '/admin/_authenticated/users'
     | '/admin/_authenticated/'
+    | '/admin/_authenticated/posts/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -269,14 +507,197 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuthenticatedIndexRouteImport
       parentRoute: typeof AdminAuthenticatedRoute
     }
+    '/admin/_authenticated/users': {
+      id: '/admin/_authenticated/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminAuthenticatedUsersRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/tools': {
+      id: '/admin/_authenticated/tools'
+      path: '/tools'
+      fullPath: '/admin/tools'
+      preLoaderRoute: typeof AdminAuthenticatedToolsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/theme': {
+      id: '/admin/_authenticated/theme'
+      path: '/theme'
+      fullPath: '/admin/theme'
+      preLoaderRoute: typeof AdminAuthenticatedThemeRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/settings': {
+      id: '/admin/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminAuthenticatedSettingsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/seo': {
+      id: '/admin/_authenticated/seo'
+      path: '/seo'
+      fullPath: '/admin/seo'
+      preLoaderRoute: typeof AdminAuthenticatedSeoRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/pwa': {
+      id: '/admin/_authenticated/pwa'
+      path: '/pwa'
+      fullPath: '/admin/pwa'
+      preLoaderRoute: typeof AdminAuthenticatedPwaRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/posts': {
+      id: '/admin/_authenticated/posts'
+      path: '/posts'
+      fullPath: '/admin/posts'
+      preLoaderRoute: typeof AdminAuthenticatedPostsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/pages': {
+      id: '/admin/_authenticated/pages'
+      path: '/pages'
+      fullPath: '/admin/pages'
+      preLoaderRoute: typeof AdminAuthenticatedPagesRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/notifications': {
+      id: '/admin/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminAuthenticatedNotificationsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/newsletter': {
+      id: '/admin/_authenticated/newsletter'
+      path: '/newsletter'
+      fullPath: '/admin/newsletter'
+      preLoaderRoute: typeof AdminAuthenticatedNewsletterRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/media': {
+      id: '/admin/_authenticated/media'
+      path: '/media'
+      fullPath: '/admin/media'
+      preLoaderRoute: typeof AdminAuthenticatedMediaRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/maintenance': {
+      id: '/admin/_authenticated/maintenance'
+      path: '/maintenance'
+      fullPath: '/admin/maintenance'
+      preLoaderRoute: typeof AdminAuthenticatedMaintenanceRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/integrations': {
+      id: '/admin/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/admin/integrations'
+      preLoaderRoute: typeof AdminAuthenticatedIntegrationsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/cookies': {
+      id: '/admin/_authenticated/cookies'
+      path: '/cookies'
+      fullPath: '/admin/cookies'
+      preLoaderRoute: typeof AdminAuthenticatedCookiesRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/comments': {
+      id: '/admin/_authenticated/comments'
+      path: '/comments'
+      fullPath: '/admin/comments'
+      preLoaderRoute: typeof AdminAuthenticatedCommentsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/cache': {
+      id: '/admin/_authenticated/cache'
+      path: '/cache'
+      fullPath: '/admin/cache'
+      preLoaderRoute: typeof AdminAuthenticatedCacheRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/backup': {
+      id: '/admin/_authenticated/backup'
+      path: '/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AdminAuthenticatedBackupRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/analytics': {
+      id: '/admin/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/posts/new': {
+      id: '/admin/_authenticated/posts/new'
+      path: '/new'
+      fullPath: '/admin/posts/new'
+      preLoaderRoute: typeof AdminAuthenticatedPostsNewRouteImport
+      parentRoute: typeof AdminAuthenticatedPostsRoute
+    }
   }
 }
 
+interface AdminAuthenticatedPostsRouteChildren {
+  AdminAuthenticatedPostsNewRoute: typeof AdminAuthenticatedPostsNewRoute
+}
+
+const AdminAuthenticatedPostsRouteChildren: AdminAuthenticatedPostsRouteChildren =
+  {
+    AdminAuthenticatedPostsNewRoute: AdminAuthenticatedPostsNewRoute,
+  }
+
+const AdminAuthenticatedPostsRouteWithChildren =
+  AdminAuthenticatedPostsRoute._addFileChildren(
+    AdminAuthenticatedPostsRouteChildren,
+  )
+
 interface AdminAuthenticatedRouteChildren {
+  AdminAuthenticatedAnalyticsRoute: typeof AdminAuthenticatedAnalyticsRoute
+  AdminAuthenticatedBackupRoute: typeof AdminAuthenticatedBackupRoute
+  AdminAuthenticatedCacheRoute: typeof AdminAuthenticatedCacheRoute
+  AdminAuthenticatedCommentsRoute: typeof AdminAuthenticatedCommentsRoute
+  AdminAuthenticatedCookiesRoute: typeof AdminAuthenticatedCookiesRoute
+  AdminAuthenticatedIntegrationsRoute: typeof AdminAuthenticatedIntegrationsRoute
+  AdminAuthenticatedMaintenanceRoute: typeof AdminAuthenticatedMaintenanceRoute
+  AdminAuthenticatedMediaRoute: typeof AdminAuthenticatedMediaRoute
+  AdminAuthenticatedNewsletterRoute: typeof AdminAuthenticatedNewsletterRoute
+  AdminAuthenticatedNotificationsRoute: typeof AdminAuthenticatedNotificationsRoute
+  AdminAuthenticatedPagesRoute: typeof AdminAuthenticatedPagesRoute
+  AdminAuthenticatedPostsRoute: typeof AdminAuthenticatedPostsRouteWithChildren
+  AdminAuthenticatedPwaRoute: typeof AdminAuthenticatedPwaRoute
+  AdminAuthenticatedSeoRoute: typeof AdminAuthenticatedSeoRoute
+  AdminAuthenticatedSettingsRoute: typeof AdminAuthenticatedSettingsRoute
+  AdminAuthenticatedThemeRoute: typeof AdminAuthenticatedThemeRoute
+  AdminAuthenticatedToolsRoute: typeof AdminAuthenticatedToolsRoute
+  AdminAuthenticatedUsersRoute: typeof AdminAuthenticatedUsersRoute
   AdminAuthenticatedIndexRoute: typeof AdminAuthenticatedIndexRoute
 }
 
 const AdminAuthenticatedRouteChildren: AdminAuthenticatedRouteChildren = {
+  AdminAuthenticatedAnalyticsRoute: AdminAuthenticatedAnalyticsRoute,
+  AdminAuthenticatedBackupRoute: AdminAuthenticatedBackupRoute,
+  AdminAuthenticatedCacheRoute: AdminAuthenticatedCacheRoute,
+  AdminAuthenticatedCommentsRoute: AdminAuthenticatedCommentsRoute,
+  AdminAuthenticatedCookiesRoute: AdminAuthenticatedCookiesRoute,
+  AdminAuthenticatedIntegrationsRoute: AdminAuthenticatedIntegrationsRoute,
+  AdminAuthenticatedMaintenanceRoute: AdminAuthenticatedMaintenanceRoute,
+  AdminAuthenticatedMediaRoute: AdminAuthenticatedMediaRoute,
+  AdminAuthenticatedNewsletterRoute: AdminAuthenticatedNewsletterRoute,
+  AdminAuthenticatedNotificationsRoute: AdminAuthenticatedNotificationsRoute,
+  AdminAuthenticatedPagesRoute: AdminAuthenticatedPagesRoute,
+  AdminAuthenticatedPostsRoute: AdminAuthenticatedPostsRouteWithChildren,
+  AdminAuthenticatedPwaRoute: AdminAuthenticatedPwaRoute,
+  AdminAuthenticatedSeoRoute: AdminAuthenticatedSeoRoute,
+  AdminAuthenticatedSettingsRoute: AdminAuthenticatedSettingsRoute,
+  AdminAuthenticatedThemeRoute: AdminAuthenticatedThemeRoute,
+  AdminAuthenticatedToolsRoute: AdminAuthenticatedToolsRoute,
+  AdminAuthenticatedUsersRoute: AdminAuthenticatedUsersRoute,
   AdminAuthenticatedIndexRoute: AdminAuthenticatedIndexRoute,
 }
 
@@ -299,3 +720,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
