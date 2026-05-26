@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Menu, ExternalLink, LogOut, User as UserIcon } from "lucide-react";
+import { Menu, ExternalLink, LogOut, User as UserIcon, Bell } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AdminSidebarContent } from "./AdminSidebar";
 import { getUser, logout } from "@/lib/adminAuth";
+import { useNotifications, notificationsApi } from "@/lib/adminStore";
 
 const TITLES: Record<string, string> = {
   "/admin": "Dashboard",
