@@ -11,11 +11,14 @@ export type PostListParams = {
 };
 
 export type PostsListResponse = {
-  posts: AdminPost[];
+  posts?: AdminPost[];
+  items?: AdminPost[];
   total?: number;
   page?: number;
   per_page?: number;
+  pages?: number;
 };
+
 
 function qs(params: Record<string, unknown>): string {
   const sp = new URLSearchParams();
