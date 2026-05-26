@@ -128,6 +128,18 @@ function PostPage() {
 
   return (
     <>
+      <style>{`
+        .article-body p {
+          text-align: left;
+        }
+        @media (min-width: 768px) {
+          .article-body p {
+            text-align: justify;
+            hyphens: auto;
+          }
+        }
+      `}</style>
+
       {/* Reading progress */}
       <div className="fixed top-0 left-0 right-0 h-1 z-50 bg-transparent">
         <div className="h-full bg-primary transition-[width] duration-100" style={{ width: `${progress}%` }} />
@@ -184,7 +196,7 @@ function PostPage() {
               </details>
             )}
 
-            <div className="prose-tb max-w-none">
+            <div className="prose-tb max-w-none article-body">
               {segments.map((seg, i) => (
                 <div key={i}>
                   <div dangerouslySetInnerHTML={{ __html: seg }} />
