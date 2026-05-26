@@ -74,6 +74,174 @@ export type MediaItem = {
   alt: string;
 };
 
+// ---------- Phase C types ----------
+
+export type UserRole = "admin" | "editor" | "author" | "subscriber";
+export type UserStatus = "active" | "suspended";
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  postsCount: number;
+  lastLogin: string;
+  avatar: string;
+};
+
+export type SubscriberStatus = "subscribed" | "unsubscribed" | "bounced";
+
+export type Subscriber = {
+  id: string;
+  email: string;
+  name?: string;
+  status: SubscriberStatus;
+  source: string;
+  subscribedAt: string;
+};
+
+export type CampaignStatus = "draft" | "scheduled" | "sent";
+
+export type NewsletterCampaign = {
+  id: string;
+  subject: string;
+  status: CampaignStatus;
+  sentAt: string | null;
+  recipients: number;
+  openRate: number;
+  clickRate: number;
+  body: string;
+};
+
+export type Integration = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  connected: boolean;
+  apiKey?: string;
+  lastSync?: string;
+};
+
+export type CookieCategory = {
+  id: string;
+  name: string;
+  description: string;
+  required: boolean;
+  enabled: boolean;
+};
+
+export type Notification = {
+  id: string;
+  type: "system" | "comment" | "user" | "post";
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+};
+
+export type Redirect = {
+  id: string;
+  from: string;
+  to: string;
+  code: 301 | 302;
+  hits: number;
+};
+
+export type BackupSnapshot = {
+  id: string;
+  createdAt: string;
+  size: number;
+  type: "auto" | "manual";
+  status: "complete" | "failed" | "in_progress";
+};
+
+export type SiteSettings = {
+  general: {
+    siteTitle: string;
+    tagline: string;
+    adminEmail: string;
+    timezone: string;
+    dateFormat: string;
+    language: string;
+  };
+  reading: {
+    postsPerPage: number;
+    homepageDisplay: "latest" | "page";
+    homepagePageId: string;
+    excerptLength: number;
+  };
+  writing: {
+    defaultCategory: string;
+    defaultFormat: string;
+    markdown: boolean;
+  };
+  discussion: {
+    allowComments: boolean;
+    requireApproval: boolean;
+    closeAfterDays: number;
+    blacklist: string;
+  };
+  permalinks: {
+    structure: string;
+  };
+  seo: {
+    titleTemplate: string;
+    metaDescription: string;
+    ogImage: string;
+    twitterHandle: string;
+    orgName: string;
+    orgUrl: string;
+    robotsTxt: string;
+  };
+  theme: {
+    primaryColor: string;
+    accentColor: string;
+    fontFamily: string;
+    radius: number;
+    mode: "light" | "dark";
+    logo: string;
+    favicon: string;
+  };
+  maintenance: {
+    enabled: boolean;
+    title: string;
+    message: string;
+    retryAfter: number;
+    allowedIps: string;
+    scheduledEnd: string;
+  };
+  pwa: {
+    name: string;
+    shortName: string;
+    description: string;
+    themeColor: string;
+    backgroundColor: string;
+    display: "standalone" | "fullscreen" | "minimal-ui" | "browser";
+    icon: string;
+    serviceWorker: boolean;
+    cacheStrategy: "networkFirst" | "cacheFirst" | "staleWhileRevalidate";
+    pushSubscribers: number;
+  };
+  cache: {
+    pageCache: boolean;
+    browserCache: boolean;
+    objectCache: boolean;
+    minify: boolean;
+    lazyLoad: boolean;
+    size: string;
+    hitRate: number;
+    cachedPages: number;
+    lastCleared: string;
+  };
+  backup: {
+    frequency: "off" | "daily" | "weekly";
+    retention: number;
+    destination: "local" | "s3" | "dropbox";
+  };
+};
+
 export const mockDashboardStats = {
   totalPosts: { value: 47, delta: 12.4 },
   totalViews: { value: 24891, delta: 8.7 },
@@ -211,8 +379,6 @@ function makePost(i: number): AdminPost {
 }
 
 export const mockPosts: AdminPost[] = Array.from({ length: 47 }, (_, i) => makePost(i));
-
-// Kept for the dashboard tile (top 5 most recent published)
 export const mockRecentPosts: AdminPost[] = mockPosts.slice(0, 5);
 
 export const mockPages: AdminPage[] = [
@@ -235,8 +401,8 @@ const COMMENT_BODIES = [
   "Bookmarked. Sending to my partner tonight.",
   "Could you cover this for self-employed people next?",
   "More posts like this please. Honest and practical.",
-  "Crypto scam buy now click here", // spam
-  "Cheap insurance click my profile", // spam
+  "Crypto scam buy now click here",
+  "Cheap insurance click my profile",
 ];
 
 export const mockComments: AdminComment[] = Array.from({ length: 25 }, (_, i) => {
@@ -265,7 +431,6 @@ export const mockComments: AdminComment[] = Array.from({ length: 25 }, (_, i) =>
   };
 });
 
-// Back-compat export for dashboard
 export const mockPendingComments: PendingComment[] = mockComments
   .filter((c) => c.status === "pending")
   .slice(0, 3)
@@ -297,3 +462,192 @@ export const mockMedia: MediaItem[] = Array.from({ length: 30 }, (_, i) => {
     alt: isDoc ? "" : `Personal finance illustration ${i + 1}`,
   };
 });
+
+// ---------- Phase C seeds ----------
+
+const USER_NAMES = [
+  "Sara Okafor", "Maya Chen", "James Rivera", "Priya Shah", "Liam Park",
+  "Noa Bensoussan", "Diego Alvarez", "Ines Costa", "Theo Walsh", "Aisha Khan",
+  "Marco Bianchi", "Hannah Brooks",
+];
+
+export const mockUsers: AdminUser[] = USER_NAMES.map((name, i) => {
+  const role: UserRole = i < 2 ? "admin" : i < 5 ? "editor" : i < 9 ? "author" : "subscriber";
+  const d = new Date();
+  d.setDate(d.getDate() - i * 2);
+  return {
+    id: `u${i + 1}`,
+    name,
+    email: `${name.toLowerCase().replace(/[^a-z]/g, ".")}@thriftbeam.com`,
+    role,
+    status: i === 11 ? "suspended" : "active",
+    postsCount: role === "subscriber" ? 0 : Math.round(seed(i + 50) * 25),
+    lastLogin: d.toISOString().slice(0, 10),
+    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+  };
+});
+
+const SUB_SOURCES = ["footer-form", "popup", "blog-cta", "import", "checkout"];
+export const mockSubscribers: Subscriber[] = Array.from({ length: 80 }, (_, i) => {
+  const status: SubscriberStatus = i % 17 === 0 ? "bounced" : i % 11 === 0 ? "unsubscribed" : "subscribed";
+  const d = new Date();
+  d.setDate(d.getDate() - i);
+  return {
+    id: `s${i + 1}`,
+    email: `subscriber${i + 1}@example.com`,
+    name: i % 3 === 0 ? undefined : `Subscriber ${i + 1}`,
+    status,
+    source: SUB_SOURCES[i % SUB_SOURCES.length],
+    subscribedAt: d.toISOString().slice(0, 10),
+  };
+});
+
+export const mockCampaigns: NewsletterCampaign[] = [
+  { id: "nc1", subject: "Weekly Money Wins — May 18", status: "sent", sentAt: "2026-05-18", recipients: 9821, openRate: 41.2, clickRate: 6.4, body: "<p>This week's top reads…</p>" },
+  { id: "nc2", subject: "How to crush your debt in Q3", status: "sent", sentAt: "2026-05-11", recipients: 9712, openRate: 38.9, clickRate: 5.8, body: "<p>A 3-step plan…</p>" },
+  { id: "nc3", subject: "Frugal habits that actually stick", status: "sent", sentAt: "2026-05-04", recipients: 9658, openRate: 43.7, clickRate: 7.1, body: "<p>Small habits…</p>" },
+  { id: "nc4", subject: "May rate update — what changed", status: "scheduled", sentAt: "2026-05-29", recipients: 10010, openRate: 0, clickRate: 0, body: "<p>Rate brief…</p>" },
+  { id: "nc5", subject: "New side hustle ideas", status: "draft", sentAt: null, recipients: 0, openRate: 0, clickRate: 0, body: "<p>Draft body…</p>" },
+  { id: "nc6", subject: "Reader Q&A: emergency funds", status: "draft", sentAt: null, recipients: 0, openRate: 0, clickRate: 0, body: "<p>Draft…</p>" },
+];
+
+export const mockIntegrations: Integration[] = [
+  { id: "ga", name: "Google Analytics", category: "Analytics", description: "Track visitors, events, and conversions.", connected: true, apiKey: "G-XXXXXXX", lastSync: "2026-05-25" },
+  { id: "gsc", name: "Search Console", category: "SEO", description: "Monitor search performance and indexing.", connected: true, lastSync: "2026-05-24" },
+  { id: "mc", name: "Mailchimp", category: "Email", description: "Sync subscribers and send campaigns.", connected: false },
+  { id: "sg", name: "Sendgrid", category: "Email", description: "Transactional email delivery.", connected: false },
+  { id: "stripe", name: "Stripe", category: "Payments", description: "Accept payments and subscriptions.", connected: false },
+  { id: "cf", name: "Cloudflare", category: "CDN", description: "Edge caching and DDoS protection.", connected: true, lastSync: "2026-05-26" },
+  { id: "algolia", name: "Algolia", category: "Search", description: "Instant search across your content.", connected: false },
+  { id: "disqus", name: "Disqus", category: "Comments", description: "Drop-in comment system.", connected: false },
+];
+
+export const mockCookieCategories: CookieCategory[] = [
+  { id: "necessary", name: "Strictly necessary", description: "Required for the site to function.", required: true, enabled: true },
+  { id: "analytics", name: "Analytics", description: "Anonymous usage statistics.", required: false, enabled: true },
+  { id: "marketing", name: "Marketing", description: "Personalized ads and retargeting.", required: false, enabled: false },
+  { id: "preferences", name: "Preferences", description: "Remember your settings and choices.", required: false, enabled: true },
+];
+
+const NOTIF_SEEDS: Omit<Notification, "id" | "createdAt">[] = [
+  { type: "comment", title: "New pending comment", body: "Jen M. commented on \"How I saved $5,000…\"", read: false },
+  { type: "user", title: "New subscriber", body: "subscriber97@example.com joined the newsletter.", read: false },
+  { type: "system", title: "Backup complete", body: "Daily snapshot saved (42 MB).", read: false },
+  { type: "post", title: "Post scheduled", body: "\"May rate update\" is scheduled for 2026-05-29.", read: true },
+  { type: "comment", title: "Comment flagged as spam", body: "Auto-moderation marked 1 comment.", read: true },
+  { type: "system", title: "Cache cleared", body: "Object cache cleared by admin.", read: true },
+  { type: "user", title: "New admin login", body: "admin@thriftbeam.com signed in.", read: true },
+  { type: "post", title: "Draft autosaved", body: "\"Roth IRA vs Traditional\" autosaved.", read: true },
+  { type: "system", title: "Integration synced", body: "Google Analytics last sync 5 min ago.", read: true },
+  { type: "comment", title: "5 comments approved", body: "Bulk approval completed.", read: true },
+  { type: "post", title: "Post published", body: "\"Sinking funds\" went live.", read: true },
+  { type: "system", title: "Maintenance scheduled", body: "Window: 2026-06-01 02:00–03:00 UTC.", read: true },
+  { type: "user", title: "Role changed", body: "Maya Chen promoted to Editor.", read: true },
+  { type: "system", title: "SSL renewed", body: "Certificate renewed for 90 days.", read: true },
+  { type: "comment", title: "New pending comment", body: "Alex P. left a comment.", read: true },
+];
+
+export const mockNotifications: Notification[] = NOTIF_SEEDS.map((n, i) => {
+  const d = new Date();
+  d.setHours(d.getHours() - i * 5);
+  return { ...n, id: `n${i + 1}`, createdAt: d.toISOString() };
+});
+
+export const mockRedirects: Redirect[] = [
+  { id: "r1", from: "/old-blog/intro", to: "/blog/welcome", code: 301, hits: 142 },
+  { id: "r2", from: "/2024-guide", to: "/blog/2026-budget-guide", code: 301, hits: 87 },
+  { id: "r3", from: "/legal", to: "/privacy", code: 302, hits: 24 },
+];
+
+export const mockBackups: BackupSnapshot[] = [
+  { id: "b1", createdAt: "2026-05-26", size: 44_120_000, type: "auto", status: "complete" },
+  { id: "b2", createdAt: "2026-05-25", size: 43_820_000, type: "auto", status: "complete" },
+  { id: "b3", createdAt: "2026-05-24", size: 43_510_000, type: "auto", status: "complete" },
+  { id: "b4", createdAt: "2026-05-23", size: 45_010_000, type: "manual", status: "complete" },
+  { id: "b5", createdAt: "2026-05-22", size: 42_900_000, type: "auto", status: "complete" },
+];
+
+export const defaultSettings: SiteSettings = {
+  general: {
+    siteTitle: "ThriftBeam",
+    tagline: "Smarter money, every week.",
+    adminEmail: "admin@thriftbeam.com",
+    timezone: "UTC",
+    dateFormat: "YYYY-MM-DD",
+    language: "en-US",
+  },
+  reading: {
+    postsPerPage: 12,
+    homepageDisplay: "latest",
+    homepagePageId: "pg1",
+    excerptLength: 160,
+  },
+  writing: {
+    defaultCategory: "Budgeting",
+    defaultFormat: "standard",
+    markdown: true,
+  },
+  discussion: {
+    allowComments: true,
+    requireApproval: true,
+    closeAfterDays: 90,
+    blacklist: "viagra\ncasino\nclick here",
+  },
+  permalinks: {
+    structure: "/blog/%postname%",
+  },
+  seo: {
+    titleTemplate: "%title% — ThriftBeam",
+    metaDescription: "Practical personal finance guides for everyday people.",
+    ogImage: "",
+    twitterHandle: "@thriftbeam",
+    orgName: "ThriftBeam",
+    orgUrl: "https://thriftbeam.com",
+    robotsTxt: "User-agent: *\nAllow: /\n\nSitemap: /sitemap.xml",
+  },
+  theme: {
+    primaryColor: "#2563EB",
+    accentColor: "#F97066",
+    fontFamily: "Inter",
+    radius: 12,
+    mode: "light",
+    logo: "",
+    favicon: "",
+  },
+  maintenance: {
+    enabled: false,
+    title: "We'll be right back",
+    message: "<p>ThriftBeam is undergoing scheduled maintenance.</p>",
+    retryAfter: 3600,
+    allowedIps: "",
+    scheduledEnd: "",
+  },
+  pwa: {
+    name: "ThriftBeam",
+    shortName: "Thrift",
+    description: "Smarter money, every week.",
+    themeColor: "#2563EB",
+    backgroundColor: "#FFFFFF",
+    display: "standalone",
+    icon: "",
+    serviceWorker: false,
+    cacheStrategy: "networkFirst",
+    pushSubscribers: 1248,
+  },
+  cache: {
+    pageCache: true,
+    browserCache: true,
+    objectCache: false,
+    minify: true,
+    lazyLoad: true,
+    size: "128 MB",
+    hitRate: 92.4,
+    cachedPages: 412,
+    lastCleared: "2026-05-20",
+  },
+  backup: {
+    frequency: "daily",
+    retention: 14,
+    destination: "s3",
+  },
+};
