@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Facebook, Twitter, Instagram, Youtube, Heart } from "lucide-react";
+import { Facebook, Twitter, Instagram, Youtube, Heart, type LucideIcon } from "lucide-react";
 import NewsletterSignup from "./NewsletterSignup";
 import { categories, tools } from "@/lib/mockData";
 
@@ -51,9 +51,14 @@ export default function Footer() {
             <li><Link to="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link></li>
           </ul>
           <div className="flex gap-2 mt-4">
-            {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
-              <a key={i} href="#" aria-label="Social link" className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-background border border-border text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors">
-                <Icon className="h-4 w-4" />
+            {([
+              { Icon: Facebook, label: "Facebook" },
+              { Icon: Twitter, label: "Twitter" },
+              { Icon: Instagram, label: "Instagram" },
+              { Icon: Youtube, label: "YouTube" },
+            ] as { Icon: LucideIcon; label: string }[]).map(({ Icon, label }) => (
+              <a key={label} href="#" aria-label={`Follow ThriftBeam on ${label}`} className="h-11 w-11 inline-flex items-center justify-center rounded-lg bg-background border border-border text-primary hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                <Icon className="h-4 w-4" aria-hidden="true" />
               </a>
             ))}
           </div>
