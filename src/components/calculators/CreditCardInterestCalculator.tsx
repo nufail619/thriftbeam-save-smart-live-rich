@@ -36,10 +36,10 @@ export default function CreditCardInterestCalculator() {
       </div>
 
       <ResultPanel title="The real cost of minimums">
-        <div className="rounded-xl bg-white/10 p-4 space-y-2">
-          <div className="text-xs uppercase tracking-wide text-white/70 font-semibold">Paying {formatUSD(payment)}/mo</div>
+        <div className="rounded-xl bg-surface border border-border p-4 space-y-2">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Paying {formatUSD(payment)}/mo</div>
           {current.months === Infinity ? (
-            <p className="text-rose-200 text-sm">Payment doesn't cover the interest. Increase it.</p>
+            <p className="text-rose-600 text-sm">Payment doesn't cover the interest. Increase it.</p>
           ) : (
             <>
               <ResultRow label="Months to payoff" value={`${current.months}`} />
@@ -47,10 +47,10 @@ export default function CreditCardInterestCalculator() {
             </>
           )}
         </div>
-        <div className="rounded-xl bg-white/10 p-4 space-y-2">
-          <div className="text-xs uppercase tracking-wide text-white/70 font-semibold">Paying {formatUSD(payment * 2)}/mo</div>
+        <div className="rounded-xl bg-surface border border-border p-4 space-y-2">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Paying {formatUSD(payment * 2)}/mo</div>
           {doubled.months === Infinity ? (
-            <p className="text-rose-200 text-sm">Still not enough.</p>
+            <p className="text-rose-600 text-sm">Still not enough.</p>
           ) : (
             <>
               <ResultRow label="Months to payoff" value={`${doubled.months}`} highlight="good" />

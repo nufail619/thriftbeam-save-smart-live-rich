@@ -1,86 +1,79 @@
-# Desktop Full-Width Layout
+# Phase 2 QA — Findings & Fixes
 
-Make desktop (≥1024px) span edge-to-edge with comfortable padding. Mobile (<768px) and tablet (768–1023px) stay byte-identical.
+I audited `/tools` and each calculator route. The pages, routing, SEO heads, breadcrumbs, related-tools section, ad slots, and form inputs all work correctly. Two real issues found, both centered on the result panel.
 
-## 1. Container utility (`src/styles.css`)
+## Findings
 
-Update `.container-page` so the 1200px cap only applies below `lg`:
+1. **Theme violation — dark indigo `ResultPanel`**
+   `src/components/calculators/shared.tsx` renders the result column as a deep indigo gradient (`linear-gradient(135deg, #4F46E5 → #6366F1)`) with white text. This directly contradicts the "light theme only, remove all dark sections" rule applied in the previous turn. Every calculator inherits it.
 
-```css
-@utility container-page {
-  width: 100%;
-  max-width: 1200px;          /* mobile + tablet keep current cap */
-  margin-inline: auto;
-  padding-inline: 1.25rem;    /* unchanged mobile */
-}
-@media (min-width: 768px) {   /* unchanged tablet */
-  .container-page { padding-inline: 2rem; }
-}
-@media (min-width: 1024px) {  /* desktop: drop cap, widen padding */
-  .container-page { max-width: none; padding-inline: 3rem; }
-}
-@media (min-width: 1280px) {
-  .container-page { padding-inline: 4rem; }
-}
-@media (min-width: 1536px) {
-  .container-page { padding-inline: 5rem; }
-}
-```
+2. **Charts are not rendering**
+   Confirmed visually on `/tools/budget-calculator` (pie chart area is blank inside the indigo panel) and `/tools/debt-payoff` (line chart area is blank). No console errors. Recharts is installed (`^2.15.4`). Likely cause: `ResponsiveContainer` inside the panel's stacked `space-y-3` flow doesn't get a measurable height in some SSR/hydration ordering, OR the chart strokes (`rgba(255,255,255,0.15)` grid, white axis text) hide against the indigo bg when the chart does paint. Either way the chart slot reads as broken.
 
-Add a sibling utility for reading-heavy bodies so prose still caps at ~768px:
+3. **Hard-coded dark styling baked into chart configs**
+   - Tooltip `contentStyle={{ background: "#0F172A", ... }}` in Budget, Savings, Debt.
+   - Axis/grid stroke `rgba(255,255,255,…)` in Debt, Savings.
+   - `EmergencyFundCalculator` progress bar track uses `bg-white/15`.
+   - `CreditCardInterestCalculator` "scenario" cards use `bg-white/10`.
+   All of these only read correctly on a dark surface.
 
-```css
-@utility prose-container {
-  width: 100%;
-  max-width: 768px;
-  margin-inline: auto;
-}
-```
+4. **`ResultRow` text colors hard-coded**
+   Uses `text-white`, `text-white/70`, `text-emerald-300`, `text-rose-300`. Needs to be theme-aware.
 
-Because every section (navbar, hero, category grid, featured, latest, tools teaser, newsletter band, footer) already uses `container-page`, no per-section markup change is needed for them to go edge-to-edge on desktop.
+5. **Minor — `Field` numeric input**
+   On iOS, leading `$`/`%` prefix overlaps with the spinner. Not blocking, but worth a small fix when we're already in the file.
 
-## 2. Grid adjustments
+Everything else (tools index grid, breadcrumbs, related-tools cards, ad slots, head metadata, 404 + error boundaries) checks out at 1440 desktop.
 
-Bump column counts at `2xl` (1536px+) only — `lg`/`xl` keep current 3-col layout, mobile/tablet untouched.
+## Fix plan
 
-- Category grid (homepage + `/blog` sidebar if present): `md:grid-cols-2 lg:grid-cols-3` → add `2xl:grid-cols-4`.
-- Latest articles grid: same change, `lg:grid-cols-3 2xl:grid-cols-4`.
-- Featured posts: leave at 3 columns.
-- Footer: leave at 4 columns (already `lg:grid-cols-4`).
+### 1. Rebuild `ResultPanel` as light-theme card
+`src/components/calculators/shared.tsx`:
 
-Files to touch (grid classes only, no structural changes):
-- `src/routes/index.tsx` — category grid + latest articles grid
-- `src/routes/blog.index.tsx` — post grid (apply same `2xl:grid-cols-4` bump)
-- `src/routes/tools.index.tsx` — only if it uses a 3-col grid; mirror the bump
+- Replace the indigo gradient with the same light card treatment used elsewhere: `bg-card border border-border rounded-2xl p-6 shadow-card`.
+- Add a soft brand accent: small `bg-primary/5` top band or a `text-primary` title color so the result side still feels like the "answer" zone. Keep title bold, body using `text-foreground` / `text-muted-foreground`.
+- Remove the `absolute -top-20 -right-20 ... bg-white/10 blur-3xl` decoration.
 
-## 3. Reading-heavy pages keep narrow prose
+### 2. Theme-correct `ResultRow`
+- Label: `text-muted-foreground`.
+- Value: `text-foreground`.
+- Highlights: `good` → `text-emerald-600`, `bad` → `text-rose-600` (keeps semantic meaning, readable on white).
 
-On these routes the outer section wrappers stay `container-page` (now full-width on desktop), but the prose body is wrapped in `prose-container` so line length stays comfortable:
+### 3. Recolor every chart for light bg
+For each chart inside the calculators:
 
-- `src/routes/blog.$slug.tsx` — wrap the article body / TOC layout's text column with `prose-container` (sticky TOC stays in the side column of the full-width section).
-- `src/routes/privacy.tsx`, `src/routes/disclaimer.tsx`, `src/routes/about.tsx` — wrap main prose block with `prose-container`. Hero/section bands above/below remain edge-to-edge.
-- `LegalLayout.tsx` — apply `prose-container` to its content slot.
+- `CartesianGrid` stroke → `hsl(var(--border))` (or `#E2E8F0`).
+- `XAxis` / `YAxis` stroke + tick → `#64748B` (muted-foreground).
+- `Tooltip contentStyle` → `{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 12, color: "#0F172A", boxShadow: "0 8px 24px rgba(15,23,42,0.08)" }`.
+- Pie/Line strokes: keep brand colors but make sure the donut slices use `#2563EB` (primary), `#FB7185` (accent), `#10B981` (success-green) — already accent + green, just swap indigo for primary blue.
+- BudgetCalculator `Legend` wrapperStyle → `{ color: "#0F172A" }`.
 
-## 4. Navbar stretch
+### 4. Fix the not-rendering chart
+- Wrap each chart container in an explicit min-height so `ResponsiveContainer` always has space pre-hydration:
+  `<div className="mt-4 h-56 w-full min-h-[224px]">`.
+- Ensure the parent panel uses `flex flex-col` so the chart row doesn't get collapsed by `space-y-*` interactions on first paint.
+- If after that a chart still doesn't render, gate it behind a small `useIsClient` mount guard inside the calculator file (recharts + SSR is a known footgun).
 
-`src/components/Navbar.tsx` already uses `container-page` for the inner row, so it automatically becomes edge-to-edge on desktop. Adjust the inner flex so nav links sit centered while logo/icons hug the edges on `lg+`:
+### 5. Light-bg fixes in individual calculators
+- `EmergencyFundCalculator`: progress track `bg-surface-2` (or `bg-muted`), fill `bg-primary`. Replace the `border-white/10` divider with `border-border`.
+- `CreditCardInterestCalculator`: scenario sub-cards → `bg-surface border border-border rounded-xl p-4`; the small uppercase eyebrow → `text-muted-foreground`; error messages → `text-rose-600`.
+- `SavingsGoalCalculator` "not possible" message → `text-rose-600`.
 
-```tsx
-<div className="container-page flex h-16 items-center gap-4">
-  <Link …>Logo</Link>                                 {/* left */}
-  <nav className="hidden md:flex items-center gap-1 lg:mx-auto">…</nav>  {/* centered on lg+ */}
-  <div className="flex items-center gap-1 lg:ml-auto">…</div>             {/* right */}
-</div>
-```
+### 6. `shared.tsx` `Field` polish
+- Bump input height consistency (`h-12` already), keep prefix/suffix.
+- Add `pr-3` when no suffix to give the native spinner room on Safari (small, optional).
 
-On mobile/tablet the existing `justify-between` behavior is preserved by replacing it with `gap-4` + `ml-auto` on the icons cluster (icons stay right-aligned because nav is hidden below `md`, and on `md` `lg:mx-auto`/`lg:ml-auto` don't apply so layout is unchanged).
-
-## 5. QA
-
-- Visual check at 320, 414, 768 (must look identical to current).
-- Visual check at 1024, 1440, 1920 (edge-to-edge with growing side padding; grids reflow at 1536).
-- Walk `/`, `/blog`, `/blog/$slug`, `/tools`, `/about`, `/privacy`, `/disclaimer`, `/contact`.
+### 7. Re-QA after fixes
+Walk all five tool routes at 1440 desktop and 390 mobile:
+- `/tools/budget-calculator` — pie chart visible, legend readable, totals correct.
+- `/tools/debt-payoff` — line chart visible on white, balance trends down.
+- `/tools/savings-goal` — line chart visible, "years to goal" shows.
+- `/tools/emergency-fund` — progress bar fills smoothly, target updates with months toggle.
+- `/tools/credit-card-interest` — both scenario cards readable, "you save" highlight green.
+Also confirm `/tools` index card hover still lifts and related-tools grid stays 4-up at `lg`.
 
 ## Out of scope
-
-No color, copy, component, route, or backend changes.
+- No copy changes to "How this works" / tips.
+- No new calculators.
+- No new routes, SEO, or backend.
+- Homepage / blog / legal pages untouched.
