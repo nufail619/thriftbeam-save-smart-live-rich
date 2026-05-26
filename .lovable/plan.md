@@ -1,107 +1,109 @@
-# ThriftBeam Admin Panel — Phase A (Foundation)
+# Phase B — Content Management
 
-Per the brief, the build ships in 3 phases with verification between each. This plan covers **Phase A only**. Phases B (content) and C (settings) will be planned after A is verified working.
+Build out Posts CRUD, Pages, Comments moderation, and Media library. All mock-data driven, all using existing admin primitives (`DataTable`, `Modal`, `ConfirmDialog`, `Badge`, `EmptyState`, `StatCard`). Public site untouched.
 
-## Guardrails (apply to all 3 phases)
+## 1. Mock data layer
 
-- **Do not touch the public site.** No edits to `src/routes/{index,blog.*,tools.*,about,contact,privacy,disclaimer}.tsx`, `__root.tsx`, or any existing component under `src/components/` outside the new `src/components/admin/` folder. Existing tokens in `src/styles.css` are reused, not modified.
-- **No backend.** All data is mock; CRUD mutates in-memory via Zustand. The PHP backend will be wired later.
-- **Same stack.** TanStack Start file routes, TanStack Router, sonner, Recharts, lucide-react, react-hook-form + zod, Tailwind tokens.
-- **Admin theme is light only.** Reuses existing Inter font, `--primary` blue, coral accent. Admin-specific surfaces (`#F8FAFC` content bg, `#E2E8F0` borders) are added as scoped CSS vars (`--admin-bg`, `--admin-border`, `--admin-sidebar`) in `src/styles.css` under a single block — no token rename, no dark-mode work.
-- **Lazy-loaded routes.** Each admin route file is split automatically by the TanStack Router plugin (no exported components in route files).
+Extend `src/lib/mockAdminData.ts` and add a new `src/lib/adminStore.ts`:
 
-## Phase A scope
+- Generate 47 full posts (expand `mockRecentPosts` to full set with `excerpt`, `content` HTML, `tags`, `featuredImage`, `seoTitle`, `seoDescription`, `readingTime`).
+- Add `AdminPage` type (id, title, slug, status, lastEdited, template) with ~8 mock pages (About, Contact, Privacy, Disclaimer, Terms, etc.).
+- Add `AdminComment` extending `PendingComment` with `status: pending|approved|spam|trash`, `postSlug`, `gravatar`. Seed ~25 comments across statuses.
+- Add `MediaItem` (id, url, filename, type, size, dimensions, uploadedAt, alt). Seed ~30 Unsplash items across image/document mocks.
+- `adminStore.ts`: in-memory store (module singleton) with subscribe-style hook `useAdminStore<T>()` for posts/pages/comments/media. All CRUD operations mutate the in-memory arrays and notify subscribers. Persists nothing — resets on reload, which matches "mock only".
 
-### Routes (file-based, under `src/routes/admin/`)
+## 2. Posts module
 
-```
-src/routes/admin/
-  _authenticated.tsx   → pathless layout: auth guard + AdminShell wrapper
-  _authenticated/
-    index.tsx          → /admin (dashboard)
-  login.tsx            → /admin/login (public)
-```
+### `/admin/posts` (rewrite stub)
+- Header: "Posts" + "New Post" button → `/admin/posts/new`.
+- `StatCard` row: Total, Published, Drafts, Scheduled.
+- Filter bar: search input, status tabs (All / Published / Draft / Scheduled / Trash), category select, author select.
+- `DataTable` columns: checkbox, Thumbnail, Title (+ slug subtext), Author, Category, Status (`Badge`), Views, Date, Actions (Edit / View / Duplicate / Trash via dropdown).
+- Bulk actions bar appears when rows selected: Publish, Draft, Trash, Delete.
+- Empty state when filtered to zero.
 
-Sidebar links for routes that don't exist yet (Posts, Pages, etc.) render but navigate to a placeholder route component shown as "Coming in Phase B/C" — keeps the sidebar truthful without 404s. These placeholders are stub files under `src/routes/admin/_authenticated/` and are replaced with real screens in later phases.
+### `/admin/posts/new` and `/admin/posts/$id/edit` (new route file)
+Shared `PostEditor` component:
+- Two-column layout: main editor (title input, slug auto-generated + editable, rich editor, excerpt textarea) + sidebar (Publish box with status/visibility/date, Category select, Tags multi-input, Featured Image picker → opens Media modal, SEO panel with title/description/preview).
+- Rich editor: use **Tiptap** (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-link`, `@tiptap/extension-image`, `@tiptap/extension-placeholder`). Toolbar: H2/H3, bold, italic, link, bullet/ordered list, blockquote, code, image (opens Media picker), undo/redo. Output HTML stored on the post.
+- Sticky action bar: Save Draft, Preview (no-op toast), Publish. Confirms via toast.
+- Autosave indicator (debounced 2s, mock).
 
-### Mock auth
+### `/admin/posts/$id/edit`
+New file `admin._authenticated.posts.$id.edit.tsx` reuses `PostEditor` with loaded post.
 
-- `src/lib/adminAuth.ts` — pure functions: `login(email, password)`, `logout()`, `getToken()`, `getUser()`, `recordFailedAttempt()`, `isLockedOut()`.
-- Hardcoded creds: `admin@thriftbeam.com` / `admin123`.
-- On success: write `tb_token` (fake JWT-shaped string: `header.payload.signature` base64) and `tb_user` JSON `{ id, name, email, role: "admin" }` to `localStorage`.
-- Lockout: store `tb_attempts` (array of timestamps) — 5 failures within 15 min triggers lockout; UI shows countdown to oldest-attempt + 15min.
-- Guard in `_authenticated.tsx` via `beforeLoad` reading `localStorage` (client only — `typeof window` check returns `{}` during SSR; client renders auth state after hydration; if no token, `throw redirect({ to: '/admin/login', search: { redirect: location.href } })`).
-- Logout clears storage + navigates to `/admin/login`.
+## 3. Pages module — `/admin/pages`
 
-### Layout (`src/components/admin/`)
+- `DataTable` of pages: Title, Slug, Template, Status, Last Edited, Actions.
+- "New Page" button → modal with title/slug/template select; create stores entry.
+- Edit opens a simpler editor (title, slug, template select, Tiptap body, SEO panel) at `/admin/pages/$id/edit` (new file). Same Tiptap as posts.
+- Delete via `ConfirmDialog`.
 
-- **AdminShell.tsx** — flex container: `<AdminSidebar />` + `<div>{<AdminTopbar />}{<main>{children}</main>}</div>`. Uses `--admin-bg` for content area.
-- **AdminSidebar.tsx** — vertical nav, grouped per brief (Overview / Content / Audience / Marketing / Settings) with uppercase `text-xs` dividers. Active item: `bg-primary text-primary-foreground rounded-xl`. Desktop: fixed `w-64`. Mobile: off-canvas drawer toggled from topbar hamburger (uses existing `Sheet` from `src/components/ui/sheet.tsx`).
-- **AdminTopbar.tsx** — sticky `h-16` white bar: hamburger (mobile) · page title (derived from current route via `useRouterState`) · "View site →" link to `/` (opens in new tab) · user avatar dropdown (uses existing `DropdownMenu`) with Profile (disabled placeholder) and Logout.
+## 4. Comments module — `/admin/comments`
 
-### Reusable primitives (`src/components/admin/`)
+- Stat row: Pending, Approved, Spam, Trash counts.
+- Status tabs filter the list.
+- List view (not table) — comment card showing avatar, author + email, post title (linked), date, full body, action row: Approve / Unapprove / Reply / Spam / Trash / Delete.
+- Reply opens inline textarea; submit shows toast (mock).
+- Bulk select with bulk actions bar.
 
-- **StatCard.tsx** — icon, label, big number, delta (+/- % with arrow, green/red).
-- **DataTable.tsx** — generic `<T>` table: columns config, sortable headers (asc/desc), client-side search, pagination (20/page), optional row selection (checkbox + bulk-action slot), empty state slot. Built on existing `src/components/ui/table.tsx`.
-- **Modal.tsx** — thin wrapper over existing `Dialog`.
-- **ConfirmDialog.tsx** — over existing `AlertDialog`: title, description, destructive variant.
-- **Badge.tsx** — admin status badge variants: `published` `draft` `scheduled` `pending` `approved` `spam` `trash`. Built on existing `ui/badge.tsx`.
-- **EmptyState.tsx** — icon, title, body, optional CTA button.
+## 5. Media library — `/admin/media`
 
-### Login page (`/admin/login`)
+- Header: "Media" + "Upload" button (opens dropzone modal, mock-creates entries from a small built-in URL list, generates fake size/dimensions).
+- View toggle: Grid / List.
+- Filter: type (image/document/all), search by filename.
+- Grid: square thumbnails with hover overlay (filename, dimensions, copy URL, delete).
+- Click item → details drawer/modal: large preview, metadata, alt-text editor, copy URL, delete (`ConfirmDialog`).
+- Reusable `<MediaPickerModal>` exported for use by Posts/Pages featured-image and rich-editor image insert.
 
-- Centered card on `--admin-bg`. ThriftBeam wordmark at top (text, no asset dependency).
-- Form: email, password (with show/hide toggle), "Remember me" (no-op checkbox), Sign In.
-- react-hook-form + zod schema (email format, min 1 password).
-- "Forgot password?" link → `toast("Password reset coming soon")`.
-- On submit: call `adminAuth.login`; on success → `navigate({ to: search.redirect ?? '/admin' })`; on failure → error toast + increment attempts; if locked out → disable form + show countdown timer (updates every second via `setInterval`).
-- If already authenticated (token present), `beforeLoad` redirects to `/admin`.
+## 6. Shared admin components to add
 
-### Dashboard (`/admin`)
+- `src/components/admin/PostEditor.tsx`
+- `src/components/admin/RichEditor.tsx` (Tiptap wrapper)
+- `src/components/admin/MediaPickerModal.tsx`
+- `src/components/admin/MediaGrid.tsx`
+- `src/components/admin/SeoPanel.tsx`
+- `src/components/admin/TagInput.tsx`
+- `src/components/admin/FilterBar.tsx`
 
-- 4 `StatCard`s (responsive grid 1/2/4): Total Posts 47, Total Views 24,891, Subscribers 10,234, Comments Pending 12 — each with mock delta.
-- 2-col section (stacks on mobile):
-  - Recharts `LineChart` — "Visitors last 30 days" (30 mock data points, blue stroke, no fill, light grid).
-  - Recharts `BarChart` — "Top categories by views" (6 mock categories, blue bars).
-- Recent posts table (5 rows) using `DataTable`: Title, Category, Status (Badge), Date, Actions (Edit/View — actions are stubs that toast "Coming soon" until Phase B).
-- Pending comments mini-list (3 items): avatar (initials), name, excerpt, post title, Approve/Reject quick actions (toast feedback, no state change yet).
+## 7. Dependencies
 
-### Mock data (Phase A subset)
+Install via bun:
+- `@tiptap/react @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-image @tiptap/extension-placeholder`
 
-`src/lib/mockAdminData.ts` — start with what the dashboard needs; expand in B/C:
-- `mockPosts` (10 sample posts for the recent-posts table + sidebar counts — full 47 in Phase B).
-- `mockPendingComments` (3).
-- `mockAnalytics` — 30 days of visitor counts + 6 category buckets.
-- `mockDashboardStats` — the 4 KPI numbers.
+## 8. Routing
 
-### Verification checklist (run before declaring Phase A done)
+New route files:
+- `admin._authenticated.posts.$id.edit.tsx`
+- `admin._authenticated.pages.$id.edit.tsx`
 
-1. `/admin/login` renders; submitting wrong creds shows error toast and increments attempts; 5 wrong attempts disables the form with a visible countdown.
-2. Correct creds redirect to `/admin`; `localStorage.tb_token` and `tb_user` are set.
-3. Visiting `/admin` (or any `/admin/*`) without a token redirects to `/admin/login?redirect=...`; after login, redirects back to original URL.
-4. Dashboard shows 4 stat cards, both charts render, recent posts table and pending comments list show mock data.
-5. Sidebar groups + active highlight work on desktop; hamburger drawer works at the current 390px viewport.
-6. Logout from avatar dropdown clears storage and returns to login.
-7. Public site smoke test: `/`, `/blog`, `/blog/$slug`, `/tools/$slug`, `/about`, `/contact` all still hydrate with no console errors (no regressions from the new shared `styles.css` additions).
-8. No edits to any pre-existing file outside `src/styles.css` (scoped admin-var block only) and `src/routeTree.gen.ts` (auto-regenerated).
+Rewrite existing stubs:
+- `admin._authenticated.posts.tsx`
+- `admin._authenticated.posts.new.tsx`
+- `admin._authenticated.pages.tsx`
+- `admin._authenticated.comments.tsx`
+- `admin._authenticated.media.tsx`
 
-## Files created in Phase A
+## 9. Out of scope (deferred to Phase C)
 
-- `src/routes/admin/login.tsx`
-- `src/routes/admin/_authenticated.tsx`
-- `src/routes/admin/_authenticated/index.tsx`
-- `src/routes/admin/_authenticated/{posts,pages,comments,media,users,newsletter,seo,analytics,integrations,cookies,cache,theme,backup,maintenance,pwa,tools,settings,notifications}.tsx` — stub "Coming soon" pages so sidebar links resolve
-- `src/components/admin/{AdminShell,AdminSidebar,AdminTopbar,StatCard,DataTable,Modal,ConfirmDialog,Badge,EmptyState}.tsx`
-- `src/lib/adminAuth.ts`
-- `src/lib/mockAdminData.ts`
+Users, Newsletter, SEO global, Analytics, Integrations, Cookies, Cache, Theme, Backup, Maintenance, PWA, Tools, Settings, Notifications — all remain "Coming Soon" stubs.
 
-## Files edited in Phase A
+## 10. Constraints
 
-- `src/styles.css` — append a single block of admin-scoped CSS vars (`--admin-bg`, `--admin-border`, `--admin-sidebar`). No existing token changes.
-- `src/routeTree.gen.ts` — auto-regenerated by the plugin (not hand-edited).
+- Public site routes/components: zero changes.
+- Design tokens only — reuse admin tokens already in `src/styles.css`.
+- No real network calls; all mutations through `adminStore`.
+- Every destructive action goes through `ConfirmDialog`.
+- Every successful mutation fires a toast via existing `sonner`.
 
-## Out of scope for Phase A
+## Verification
 
-Posts CRUD + rich editor, Pages/Comments/Media, all Settings screens, Users, Newsletter, SEO/Analytics/Integrations, Cookies/Cache/Theme/Backup/Maintenance/PWA/Tools/Notifications. Sidebar entries exist but point at "Coming soon" stubs.
-
-After Phase A is verified working, I'll plan Phase B (content management) and then Phase C (settings).
+After build:
+1. Create a new post via editor → appears at top of `/admin/posts`.
+2. Edit existing post inline → changes persist in-session.
+3. Trash → confirm → row removed from default view, visible under Trash tab.
+4. Bulk publish 3 drafts → all flip to Published.
+5. Pages: create + edit + delete work.
+6. Comments: approve / spam / trash transitions update counts in stat row.
+7. Media: upload mock, pick from MediaPicker inside post editor, set as featured image, insert into Tiptap body.
+8. Public routes `/`, `/blog`, `/tools/$slug` render unchanged.
