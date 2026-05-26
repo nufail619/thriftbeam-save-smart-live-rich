@@ -72,7 +72,7 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
   const saving = createMut.isPending || updateMut.isPending;
 
   const save = async (status: AdminPostStatus) => {
-    if (!post.title.trim()) {
+    if (!(post.title ?? "").trim()) {
       toast.error("Title is required");
       return;
     }
@@ -81,6 +81,11 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
       if (mode === "new") {
         const created = await createMut.mutateAsync(payload);
         qc.invalidateQueries({ queryKey: ["posts"] });
+        if (!created?.id) {
+          toast.error("Server did not return a post id");
+          return;
+        }
+        qc.setQueryData(["posts", created.id], created);
         toast.success(status === "published" ? "Post published" : "Draft saved");
         navigate({ to: "/admin/posts/$id/edit", params: { id: created.id } });
       } else {

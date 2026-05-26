@@ -1,102 +1,80 @@
-# Connect Frontend to Production PHP Backend
+# Fix post-create → edit redirect crash
 
-API base: `https://thriftbeam.com/api`. Response envelope: `{ ok: true, data }` or `{ error }`. Token in `localStorage.tb_token`.
+## Diagnosis (from code review)
 
-## Phase 1 — Foundation + Auth + Posts
+The error boundary fires on `/admin/posts/:id/edit` after `POST /posts` returns. Likely root causes, in order of probability:
 
-### 1. `src/lib/api.ts` (new) — typed fetch client
+1. **Response shape mismatch on create.** `PostEditor.save()` does `navigate({ params: { id: created.id } })`. If the PHP backend returns `{ ok, data: { post: {...} } }` (wrapper) instead of `{ ok, data: {...post} }`, `created.id` is `undefined` → URL becomes `/admin/posts/undefined/edit` → `GET /posts/undefined` → 404 → error UI. Same risk for `GET /posts/:id` returning `{ post }` wrapper — `data.title` etc. are then undefined and `PostEditor` crashes on `post.title.trim()` / `post.tags.map`.
+2. **Field shape mismatch.** Backend likely returns snake_case (`featured_image`, `seo_title`, `reading_time`, `tags` as string/JSON) while `AdminPost` is camelCase. Missing `tags` array → `TagInput` crashes on `.map`.
+3. **`id` type.** Backend may return numeric `id`; route param is a string. Works for navigation, but strict equality checks elsewhere can break — confirm.
+4. **CORS preflight.** Browser sends `OPTIONS /posts` with `Authorization, Content-Type` headers. If backend doesn't echo `Access-Control-Allow-Headers: Authorization, Content-Type`, the PUT/POST is blocked even though GET works.
 
-- `API_BASE = "https://thriftbeam.com/api"`
-- `apiFetch<T>(path, { method, body, headers, formData })`:
-  - Prepends base URL
-  - Reads `tb_token` from localStorage; attaches `Authorization: Bearer <token>` only when token is a non-empty string of length > 10 and not the literal `"undefined"`
-  - JSON-encodes object bodies and sets `Content-Type: application/json`; if `formData` passed, sends as-is with no content-type header (browser sets boundary)
-  - Parses JSON response; if `res.status === 401`: clear `tb_token` + `tb_user`, `window.location.assign("/admin/login")`, throw `ApiError`
-  - If `!res.ok` or `body.ok === false` / `body.error`: throw `ApiError(body.error || res.statusText, res.status)`
-  - Returns `body.data as T` (auto-unwrap)
-- Helpers: `api.get`, `api.post`, `api.put`, `api.delete`, `api.upload(path, file, extraFields?)`
-- `saveAuth(token, user)`: validates `typeof token === "string" && token.length > 10` before writing; throws otherwise
+## Step 1 — Live diagnosis
 
-### 2. Admin login (`src/routes/admin.login.tsx` + `src/lib/adminAuth.ts`)
+Need test admin credentials (or please log in once in the preview so the browser tool inherits the session). Then:
 
-- Replace mock `login()` body with `await api.post("/auth/login", { email, password })` → expect `{ token, user }`
-- On success: `saveAuth(token, user)`, toast, navigate to `search.redirect ?? "/admin"`
-- On failure: preserve existing lockout / attempt-counting UX (lockout stays client-side; it's UX-only)
-- Keep `getToken`, `getUser`, `logout`, `isAuthenticated` working against localStorage
+- Browser-navigate to `/admin/posts`, click "New post", save → capture the `POST /posts` response body and the failing `GET /posts/:id` response.
+- Inspect `OPTIONS` preflight headers for `/posts` and `/posts/:id`.
+- Read the actual error from the React error boundary via console.
 
-### 3. TanStack Query wiring
+## Step 2 — Code fixes
 
-- Confirm `QueryClient` is provided in `__root.tsx` (already in template per integration card). If missing, add `<QueryClientProvider>` wrap in root component only.
-- No router-context changes needed; admin pages use `useQuery`/`useMutation` directly.
+### `src/lib/api/posts.ts`
+Add a tolerant normalizer that accepts both shapes and maps snake_case → camelCase:
 
-### 4. Admin dashboard (`admin._authenticated.index.tsx`)
+```ts
+function normalizePost(raw: any): AdminPost {
+  const p = raw?.post ?? raw;  // unwrap { post: {...} }
+  return {
+    id: String(p.id),
+    title: p.title ?? "",
+    slug: p.slug ?? "",
+    author: p.author ?? AUTHORS[0],
+    category: p.category ?? CATEGORIES[0],
+    status: p.status ?? "draft",
+    views: p.views ?? 0,
+    date: p.date ?? p.published_at ?? p.created_at?.slice(0,10) ?? "",
+    thumbnail: p.thumbnail ?? p.featured_image ?? "",
+    excerpt: p.excerpt ?? "",
+    content: p.content ?? "",
+    tags: Array.isArray(p.tags) ? p.tags : (typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : []),
+    featuredImage: p.featuredImage ?? p.featured_image ?? "",
+    seoTitle: p.seoTitle ?? p.seo_title ?? "",
+    seoDescription: p.seoDescription ?? p.seo_description ?? "",
+    readingTime: p.readingTime ?? p.reading_time ?? 3,
+  };
+}
+```
 
-- `useQuery({ queryKey: ["admin","dashboard"], queryFn: () => api.get("/dashboard") })`
-- Render skeletons (reuse existing StatCard layout with shimmer) while `isLoading`
-- On error: toast + inline error state; keep layout intact
+Apply `normalizePost` to `get`, `getBySlug`, `create`, `update`, `setStatus` return values. Add inverse mapper for outbound payload (camelCase → snake_case) if backend requires snake_case on write.
 
-### 5. Posts CRUD
+### `src/components/admin/PostEditor.tsx`
+- After `createMut.mutateAsync`, guard: `if (!created?.id) { toast.error("Server didn't return an id"); return; }`.
+- Replace bare `post.tags.map` / `post.title.trim()` with `?? ""` / `?? []` fallbacks so a partially-loaded post doesn't throw.
 
-- `src/lib/api/posts.ts`:
-  - `listAdminPosts(params)` → `GET /posts/admin`
-  - `getPost(id)` → `GET /posts/:id` (or use existing edit endpoint backend exposes)
-  - `createPost(payload)` → `POST /posts`
-  - `updatePost(id, payload)` → `PUT /posts/:id`
-  - `deletePost(id)` → `DELETE /posts/:id`
-- `admin._authenticated.posts.index.tsx`: `useQuery(["posts","admin", filters])`; skeleton rows; delete via `useMutation` + `invalidateQueries`
-- `admin._authenticated.posts.new.tsx`: `useMutation(createPost)` → on success navigate to edit page + toast
-- `admin._authenticated.posts.$id.edit.tsx`: `useQuery(["posts", id])` for initial data; `useMutation(updatePost)` for Save Draft / Publish; invalidate list on success
-- Remove `postsApi` direct calls from these three routes; keep `adminStore` file alive only for screens not yet migrated in Phase 1
+### `src/routes/admin._authenticated.posts.$id.edit.tsx`
+- Already has an error path; widen to show `error.message` from `ApiError` and log the raw response in dev so future shape drift is obvious.
 
-### 6. Verification gate (stop before Phase 2)
+## Step 3 — CORS verification
 
-- Login with real creds → dashboard loads real numbers
-- Posts list renders from API; create + edit + delete round-trip works
-- 401 from any call redirects to `/admin/login` and clears storage
-- No console errors
+From the browser, confirm response to `OPTIONS https://thriftbeam.com/api/posts/1` includes:
 
----
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization, Accept
+```
 
-## Phase 2 — Remaining admin + public
+If `Authorization` is missing from `Allow-Headers`, frontend can't fix it — flag back to backend owner. Frontend already sends the correct headers.
 
-Same pattern (`src/lib/api/<resource>.ts` + `useQuery`/`useMutation` in route file). Skeletons for loading, toasts for errors, `invalidateQueries` on mutations.
+## Step 4 — Verify
 
-| Area | Endpoints |
-|---|---|
-| Categories | `GET/POST /categories`, `PUT/DELETE /categories/:id` |
-| Users | `GET/POST /users`, `PUT/DELETE /users/:id` |
-| Media | `GET /media`, `POST /media` (FormData, `file` field, real progress via `XMLHttpRequest` wrapper in `api.upload`), `PUT/DELETE /media/:id` |
-| Comments | `GET /comments`, `PUT /comments/:id` (status), `DELETE /comments/:id` |
-| Newsletter (admin) | `GET /newsletter`, `PUT/DELETE /newsletter/:id` |
-| Pages | `GET/POST /pages`, `PUT/DELETE /pages/:id` |
-| Settings | `GET /settings`, `PUT /settings/:key` |
-| Public home (`index.tsx`) | `GET /posts?per_page=6` |
-| Public blog list (`blog.index.tsx`) | `GET /posts` with category/tag/search/page filters via `loaderDeps` + Query |
-| Public blog post (`blog.$slug.tsx`) | `GET /posts/slug/:slug` |
-| Newsletter signup component | `POST /newsletter` |
-| Contact form (`contact.tsx`) | `POST /contact` |
-| Comment submit (on blog post) | `POST /comments` |
-
-### Media upload specifics
-
-- `api.upload(path, file, fields?)`: uses `XMLHttpRequest` so we can emit progress events; resolves with unwrapped `data` (filename + URL); rejects with `ApiError` on non-2xx or `{ok:false}`
-- `MediaPickerModal` + media admin page show real progress bar; on success swap in returned URL
-
-### Mock data fallback
-
-- Keep `src/lib/mockData.ts` / `mockAdminData.ts` files; use them only for skeleton dimensions/placeholders during `isLoading`, never as random content
-- Remove `adminStore`'s in-memory subscribe pattern once all consumers migrate; delete file at end of Phase 2
-
-## Technical notes
-
-- All API calls are client-side from components via TanStack Query — no server functions, no SSR fetches (admin is auth-gated; public pages can stay CSR for now to avoid CORS/SSR origin concerns until backend confirms CORS for the lovable.app preview origin)
-- `ApiError extends Error { status: number }` so callers can branch on 401/403/422
-- Token validation rule (`length > 10`, not `"undefined"`) enforced in both `saveAuth` and `apiFetch` read path
-- No UI/layout/design changes — only swap data sources inside hooks/route loaders
-- All toasts via existing `sonner` instance; all skeletons via existing admin skeleton components
+1. Create new post → redirected to `/admin/posts/<real-id>/edit`, editor populated, no console errors.
+2. Edit existing post → save → list reflects changes, query cache updated.
+3. Network tab: `OPTIONS` returns 204 with CORS headers; `POST/GET/PUT` return `{ ok: true, data }`.
 
 ## Out of scope
+Backend changes (PHP). If the response truly returns `{ post: {...} }` and the team prefers fixing it server-side, the normalizer above remains a useful defensive layer.
 
-- CORS configuration on the PHP backend (assumed already permitting the preview + custom domain)
-- Refresh-token flow (not specified; 401 = logout)
-- Optimistic updates (can add later per screen)
+## What I need from you
+Either (a) test admin email + password, or (b) log in once in the preview and ping me — then I'll run the live diagnosis before applying fixes.
