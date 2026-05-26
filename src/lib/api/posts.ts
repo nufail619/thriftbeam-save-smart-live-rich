@@ -77,10 +77,12 @@ function toApiPayload(p: Partial<AdminPost>): Record<string, unknown> {
 
 export const postsApi = {
   listAdmin: async (params: PostListParams = {}): Promise<PostsListResponse> => {
-    const res = await api.get<PostsListResponse | AdminPost[] | { posts: unknown[] }>(`/posts/admin${qs(params)}`);
-    if (Array.isArray(res)) return { posts: res.map(normalizePost) };
-    const list = Array.isArray((res as PostsListResponse)?.posts) ? (res as PostsListResponse).posts : [];
-    return { ...(res as PostsListResponse), posts: list.map(normalizePost) };
+    const res = await api.get<PostsListResponse | AdminPost[]>(`/posts/admin${qs(params)}`);
+    if (Array.isArray(res)) return { posts: res.map(normalizePost), items: res.map(normalizePost) };
+    const r = (res ?? {}) as PostsListResponse;
+    const raw = Array.isArray(r.items) ? r.items : Array.isArray(r.posts) ? r.posts : [];
+    const normalized = raw.map(normalizePost);
+    return { ...r, posts: normalized, items: normalized };
   },
   get: async (id: string) => normalizePost(await api.get(`/posts/${id}`)),
   getBySlug: async (slug: string) => normalizePost(await api.get(`/posts/slug/${slug}`)),
@@ -94,5 +96,6 @@ export const postsApi = {
 
 export function normalizePosts(res: PostsListResponse | AdminPost[]): AdminPost[] {
   if (Array.isArray(res)) return res;
-  return res?.posts ?? [];
+  return res?.items ?? res?.posts ?? [];
 }
+
