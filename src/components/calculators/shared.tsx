@@ -1,3 +1,5 @@
+import { useEffect, useState, type ReactNode } from "react";
+
 export function Field({
   label, value, onChange, prefix, suffix, min = 0, step = 1,
 }: { label: string; value: number; onChange: (n: number) => void; prefix?: string; suffix?: string; min?: number; step?: number }) {
@@ -47,6 +49,14 @@ export function ResultPanel({ title, children }: { title: string; children: Reac
       <div className="space-y-3 flex-1">{children}</div>
     </div>
   );
+}
+
+/** Client-only wrapper for recharts (avoids SSR hydration mismatch). */
+export function ClientOnly({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return <>{fallback}</>;
+  return <>{children}</>;
 }
 
 export const CHART_TOOLTIP_STYLE = {
