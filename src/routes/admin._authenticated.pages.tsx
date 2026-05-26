@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePages, pagesApi, slugify } from "@/lib/adminStore";
 import { toast } from "sonner";
-import type { AdminPageTemplate, AdminPageStatus } from "@/lib/mockAdminData";
+import type { AdminPageTemplate } from "@/lib/mockAdminData";
 
 export const Route = createFileRoute("/admin/_authenticated/pages")({
   component: PagesPage,

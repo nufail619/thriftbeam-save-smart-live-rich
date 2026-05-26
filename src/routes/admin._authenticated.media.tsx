@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useMedia, mediaApi, formatBytes } from "@/lib/adminStore";
-import type { MediaItem, MediaType } from "@/lib/mockAdminData";
+import type { MediaType } from "@/lib/mockAdminData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
