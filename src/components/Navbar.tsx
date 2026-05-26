@@ -61,7 +61,7 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
             ))}
           </nav>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 lg:ml-auto">
             <button
               type="button"
               aria-label="Search"
