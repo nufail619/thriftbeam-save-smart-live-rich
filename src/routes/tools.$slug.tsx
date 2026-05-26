@@ -36,7 +36,8 @@ export const Route = createFileRoute("/tools/$slug")({
   loader: ({ params }) => {
     const tool = tools.find((t) => t.slug === params.slug);
     if (!tool) throw notFound();
-    return tool;
+    // Strip non-serializable icon (Lucide forwardRef) before dehydration
+    return { slug: tool.slug, name: tool.name, description: tool.description };
   },
   head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "Calculator — ThriftBeam" }] };
