@@ -43,6 +43,9 @@ export default function AdminTopbar() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const user = getUser();
+  const notifications = useNotifications();
+  const unread = notifications.filter((n) => !n.read).length;
+  const recent = notifications.slice(0, 5);
   const title = TITLES[pathname] ?? "Admin";
 
   const initials = user?.name
