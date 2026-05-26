@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import ComingSoon from "@/components/admin/ComingSoon";
+import PostEditor from "@/components/admin/PostEditor";
 
 export const Route = createFileRoute("/admin/_authenticated/posts/new")({
-  component: () => <ComingSoon title="New Post" phase="B" />,
+  component: () => <PostEditor mode="new" />,
 });
