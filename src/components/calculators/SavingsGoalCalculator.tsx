@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { formatUSD } from "@/lib/mockData";
-import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_STROKE } from "./shared";
+import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_STROKE, ClientOnly } from "./shared";
 
 export default function SavingsGoalCalculator() {
   const [goal, setGoal] = useState(10000);
@@ -44,15 +44,17 @@ export default function SavingsGoalCalculator() {
             <ResultRow label="≈ years" value={`${(result.months / 12).toFixed(1)} yrs`} />
             <ResultRow label="Interest earned" value={formatUSD(result.interest)} />
             <div className="mt-2 w-full h-56 min-h-[224px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={result.data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
-                  <XAxis dataKey="month" stroke={CHART_AXIS_STROKE} fontSize={11} />
-                  <YAxis stroke={CHART_AXIS_STROKE} fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
-                  <Line type="monotone" dataKey="balance" stroke="#10B981" strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <ClientOnly>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={result.data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                    <XAxis dataKey="month" stroke={CHART_AXIS_STROKE} fontSize={11} />
+                    <YAxis stroke={CHART_AXIS_STROKE} fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
+                    <Line type="monotone" dataKey="balance" stroke="#10B981" strokeWidth={2.5} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ClientOnly>
             </div>
           </>
         ) : (
