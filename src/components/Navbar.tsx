@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Menu, X, Search, Sun, Moon } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import SearchModal from "./SearchModal";
 
 const NAV_LINKS = [
@@ -11,18 +11,10 @@ const NAV_LINKS = [
   { to: "/contact", label: "Contact" },
 ] as const;
 
-export default function Navbar({ transparentOverHero = false }: { transparentOverHero?: boolean }) {
+export default function Navbar({ transparentOverHero: _ = false }: { transparentOverHero?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("tb_theme") as "light" | "dark" | null;
-    const initial = stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(initial);
-    document.documentElement.classList.toggle("dark", initial === "dark");
-  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -42,28 +34,16 @@ export default function Navbar({ transparentOverHero = false }: { transparentOve
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-    localStorage.setItem("tb_theme", next);
-  }
-
-  const solid = scrolled || !transparentOverHero;
-  const onHero = transparentOverHero && !scrolled;
-
   return (
     <>
       <header
-        className={`sticky top-0 z-40 transition-all duration-300 ${
-          solid
-            ? "bg-background/80 backdrop-blur-md border-b border-border"
-            : "bg-transparent border-b border-transparent"
+        className={`sticky top-0 z-40 transition-all duration-300 bg-background/85 backdrop-blur-md ${
+          scrolled ? "border-b border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "border-b border-transparent"
         }`}
       >
         <div className="container-page flex h-16 items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-1 font-bold text-xl tracking-tight" aria-label="ThriftBeam home">
-            <span className={onHero ? "text-white" : "text-foreground"}>Thrift</span>
+            <span className="text-foreground">Thrift</span>
             <span className="text-primary">Beam</span>
           </Link>
 
@@ -72,9 +52,7 @@ export default function Navbar({ transparentOverHero = false }: { transparentOve
               <Link
                 key={l.to}
                 to={l.to}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  onHero ? "text-white/80 hover:text-white" : "text-foreground/70 hover:text-foreground"
-                }`}
+                className="px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
                 activeProps={{ className: "text-primary" }}
                 activeOptions={{ exact: l.to === "/" }}
               >
@@ -88,29 +66,15 @@ export default function Navbar({ transparentOverHero = false }: { transparentOve
               type="button"
               aria-label="Search"
               onClick={() => setSearchOpen(true)}
-              className={`h-11 w-11 rounded-lg inline-flex items-center justify-center transition-colors ${
-                onHero ? "text-white/90 hover:bg-white/10" : "text-foreground hover:bg-muted"
-              }`}
+              className="h-11 w-11 rounded-lg inline-flex items-center justify-center text-foreground hover:bg-muted transition-colors"
             >
               <Search className="h-5 w-5" />
             </button>
             <button
               type="button"
-              aria-label="Toggle theme"
-              onClick={toggleTheme}
-              className={`h-11 w-11 rounded-lg inline-flex items-center justify-center transition-colors ${
-                onHero ? "text-white/90 hover:bg-white/10" : "text-foreground hover:bg-muted"
-              }`}
-            >
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-            <button
-              type="button"
               aria-label="Open menu"
               onClick={() => setOpen(true)}
-              className={`md:hidden h-11 w-11 rounded-lg inline-flex items-center justify-center transition-colors ${
-                onHero ? "text-white/90 hover:bg-white/10" : "text-foreground hover:bg-muted"
-              }`}
+              className="md:hidden h-11 w-11 rounded-lg inline-flex items-center justify-center text-foreground hover:bg-muted transition-colors"
             >
               <Menu className="h-5 w-5" />
             </button>
