@@ -1,32 +1,36 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
-  Link,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
+  Link,
 } from "@tanstack/react-router";
+import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import AnnouncementBar from "@/components/AnnouncementBar";
+import CookieConsent from "@/components/CookieConsent";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[70vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+        <p className="text-sm font-semibold text-primary tracking-widest uppercase">404</p>
+        <h1 className="mt-2 text-4xl font-bold tracking-tight">Page not found</h1>
+        <p className="mt-3 text-muted-foreground">
+          The page you're looking for has wandered off. Let's get you back on track.
         </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
+        <Link
+          to="/"
+          className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          Back to Home
+        </Link>
       </div>
     </div>
   );
@@ -35,32 +39,17 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[70vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <h1 className="text-2xl font-bold">Something went wrong</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Please try again or head back home.</p>
+        <div className="mt-6 flex justify-center gap-2">
           <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
+            onClick={() => { router.invalidate(); reset(); }}
+            className="h-11 px-5 rounded-xl bg-primary text-primary-foreground font-semibold"
+          >Try again</button>
+          <a href="/" className="h-11 px-5 inline-flex items-center rounded-xl border border-border font-semibold">Go home</a>
         </div>
       </div>
     </div>
@@ -72,19 +61,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { name: "theme-color", content: "#4F46E5" },
+      { title: "ThriftBeam — Save Smart, Live Rich" },
+      { name: "description", content: "Independent personal finance: budgeting, debt payoff, side hustles, frugal living, credit and insurance — explained simply." },
+      { property: "og:site_name", content: "ThriftBeam" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@ThriftBeam" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" },
+    ],
+    scripts: [
       {
-        rel: "stylesheet",
-        href: appCss,
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "ThriftBeam",
+          url: "https://thriftbeam.com",
+          slogan: "Save Smart, Live Rich",
+        }),
       },
     ],
   }),
@@ -94,11 +94,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+const themeScript = `(function(){try{var t=localStorage.getItem('tb_theme');if(!t){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         {children}
@@ -110,10 +113,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const transparent = pathname === "/";
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <AnnouncementBar />
+      <Navbar transparentOverHero={transparent} />
+      <main className="min-h-[60vh]">
+        <Outlet />
+      </main>
+      <Footer />
+      <CookieConsent />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
 }
