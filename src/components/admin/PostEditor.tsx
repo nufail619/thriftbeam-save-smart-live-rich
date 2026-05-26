@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X, Loader2 } from "lucide-react";
 import RichEditor from "./RichEditor";
 import SeoPanel from "./SeoPanel";
 import TagInput from "./TagInput";
 import MediaPickerModal from "./MediaPickerModal";
-import { postsApi, slugify } from "@/lib/adminStore";
+import { postsApi } from "@/lib/api/posts";
 import { AUTHORS, CATEGORIES, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
 
 type Mode = "new" | "edit";
+
+export function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 80);
+}
 
 const blankPost: Omit<AdminPost, "id"> = {
   title: "",
@@ -31,6 +36,7 @@ const blankPost: Omit<AdminPost, "id"> = {
 
 export default function PostEditor({ mode, initial }: { mode: Mode; initial?: AdminPost }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [post, setPost] = useState<AdminPost | Omit<AdminPost, "id">>(
     initial ?? blankPost,
   );
@@ -44,14 +50,12 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
     dirtyRef.current = true;
   };
 
-  // Auto-slug from title for new posts until user edits slug
   useEffect(() => {
     if (!slugTouched) {
       setPost((p) => ({ ...p, slug: slugify(p.title) }) as AdminPost);
     }
   }, [post.title, slugTouched]);
 
-  // Mock autosave indicator
   useEffect(() => {
     if (!dirtyRef.current) return;
     const t = setTimeout(() => {
@@ -61,19 +65,33 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
     return () => clearTimeout(t);
   }, [post]);
 
-  const save = (status: AdminPostStatus) => {
+  const createMut = useMutation({ mutationFn: (payload: Partial<AdminPost>) => postsApi.create(payload) });
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<AdminPost> }) => postsApi.update(id, payload),
+  });
+  const saving = createMut.isPending || updateMut.isPending;
+
+  const save = async (status: AdminPostStatus) => {
     if (!post.title.trim()) {
       toast.error("Title is required");
       return;
     }
     const payload = { ...post, status, slug: post.slug || slugify(post.title) } as AdminPost;
-    if (mode === "new") {
-      const created = postsApi.create(payload);
-      toast.success(status === "published" ? "Post published" : "Draft saved");
-      navigate({ to: "/admin/posts/$id/edit", params: { id: created.id } });
-    } else {
-      postsApi.update((initial as AdminPost).id, payload);
-      toast.success(status === "published" ? "Post published" : "Saved");
+    try {
+      if (mode === "new") {
+        const created = await createMut.mutateAsync(payload);
+        qc.invalidateQueries({ queryKey: ["posts"] });
+        toast.success(status === "published" ? "Post published" : "Draft saved");
+        navigate({ to: "/admin/posts/$id/edit", params: { id: created.id } });
+      } else {
+        const id = (initial as AdminPost).id;
+        const updated = await updateMut.mutateAsync({ id, payload });
+        qc.setQueryData(["posts", id], updated);
+        qc.invalidateQueries({ queryKey: ["posts"] });
+        toast.success(status === "published" ? "Post published" : "Saved");
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
     }
   };
 
