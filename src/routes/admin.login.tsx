@@ -129,8 +129,9 @@ function LoginPage() {
                 disabled={lock.locked}
                 {...form.register("email")}
                 className="mt-1 h-12 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
-                placeholder="admin@thriftbeam.com"
+                placeholder="you@example.com"
               />
+
               {form.formState.errors.email && (
                 <p className="mt-1 text-xs text-destructive">{form.formState.errors.email.message}</p>
               )}
