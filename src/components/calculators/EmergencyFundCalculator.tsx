@@ -42,8 +42,8 @@ export default function EmergencyFundCalculator() {
         <ResultRow label="Months to reach" value={monthsToReach === Infinity ? "—" : `${monthsToReach}`} />
         <ResultRow label="Progress" value={`${Math.min(100, Math.round((saved / target) * 100))}%`} />
         <div className="pt-3">
-          <div className="h-3 bg-white/15 rounded-full overflow-hidden">
-            <div className="h-full bg-accent transition-all" style={{ width: `${Math.min(100, (saved / target) * 100)}%` }} />
+          <div className="h-3 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, (saved / target) * 100)}%` }} />
           </div>
         </div>
       </ResultPanel>
