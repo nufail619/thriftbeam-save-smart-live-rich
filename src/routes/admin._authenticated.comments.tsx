@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MessageCircle,
   CheckCircle2,
@@ -10,11 +11,12 @@ import {
   Undo2,
   ShieldOff,
   X,
+  Loader2,
 } from "lucide-react";
 import StatCard from "@/components/admin/StatCard";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { useComments, commentsApi } from "@/lib/adminStore";
+import { commentsApi } from "@/lib/api/comments";
 import type { CommentStatus, AdminComment } from "@/lib/mockAdminData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -32,7 +34,25 @@ const TABS: { key: "all" | CommentStatus; label: string }[] = [
 ];
 
 function CommentsPage() {
-  const comments = useComments();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["comments"],
+    queryFn: () => commentsApi.list(),
+  });
+  const comments: AdminComment[] = data ?? [];
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["comments"] });
+
+  const setStatusMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: CommentStatus }) => commentsApi.setStatus(id, status),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const removeMut = useMutation({
+    mutationFn: (id: string) => commentsApi.remove(id),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const [tab, setTab] = useState<"all" | CommentStatus>("pending");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [replyOpen, setReplyOpen] = useState<string | null>(null);
@@ -57,12 +77,33 @@ function CommentsPage() {
 
   const selectedIds = Array.from(selected).filter((id) => filtered.some((c) => c.id === id));
 
+  const bulkSet = async (ids: string[], status: CommentStatus, msg: string) => {
+    try {
+      await Promise.all(ids.map((id) => setStatusMut.mutateAsync({ id, status })));
+      toast.success(msg);
+      setSelected(new Set());
+    } catch {/* toast handled */}
+  };
+  const bulkDel = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map((id) => removeMut.mutateAsync(id)));
+      toast.success("Deleted");
+    } catch {/* toast handled */}
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Comments</h1>
         <p className="text-sm text-muted-foreground">Moderate reader discussions across your posts.</p>
       </div>
+
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load comments: {(error as Error).message}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Pending" value={counts.pending} icon={MessageCircle} />
@@ -94,14 +135,16 @@ function CommentsPage() {
           <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-4 py-2 text-sm">
             <span className="font-medium">{selectedIds.length} selected</span>
             <div className="ml-auto flex flex-wrap gap-2">
-              <button onClick={() => { commentsApi.bulkSetStatus(selectedIds, "approved"); toast.success("Approved"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Approve</button>
-              <button onClick={() => { commentsApi.bulkSetStatus(selectedIds, "spam"); toast.success("Marked spam"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Spam</button>
-              <button onClick={() => { commentsApi.bulkSetStatus(selectedIds, "trash"); toast.success("Trashed"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Trash</button>
+              <button onClick={() => bulkSet(selectedIds, "approved", "Approved")} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Approve</button>
+              <button onClick={() => bulkSet(selectedIds, "spam", "Marked spam")} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Spam</button>
+              <button onClick={() => bulkSet(selectedIds, "trash", "Trashed")} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Trash</button>
             </div>
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading comments…</div>
+        ) : filtered.length === 0 ? (
           <div className="p-6">
             <EmptyState icon={MessageCircle} title="No comments here" />
           </div>
@@ -118,6 +161,7 @@ function CommentsPage() {
                 replyText={replyText}
                 setReplyText={setReplyText}
                 onDelete={() => setConfirmDel([c.id])}
+                onStatus={(s, m) => setStatusMut.mutate({ id: c.id, status: s }, { onSuccess: () => toast.success(m) })}
               />
             ))}
           </ul>
@@ -131,8 +175,8 @@ function CommentsPage() {
         description="This comment cannot be recovered."
         destructive
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (confirmDel) { commentsApi.bulkRemove(confirmDel); toast.success("Deleted"); }
+        onConfirm={async () => {
+          if (confirmDel) await bulkDel(confirmDel);
           setConfirmDel(null);
         }}
       />
@@ -141,7 +185,7 @@ function CommentsPage() {
 }
 
 function CommentCard({
-  c, checked, onToggle, replyOpen, onReplyToggle, replyText, setReplyText, onDelete,
+  c, checked, onToggle, replyOpen, onReplyToggle, replyText, setReplyText, onDelete, onStatus,
 }: {
   c: AdminComment;
   checked: boolean;
@@ -151,8 +195,8 @@ function CommentCard({
   replyText: string;
   setReplyText: (v: string) => void;
   onDelete: () => void;
+  onStatus: (status: CommentStatus, msg: string) => void;
 }) {
-  const setStatus = (status: CommentStatus, msg: string) => { commentsApi.setStatus(c.id, status); toast.success(msg); };
   return (
     <li className="px-4 py-4">
       <div className="flex gap-3">
@@ -162,18 +206,20 @@ function CommentCard({
           <div className="flex flex-wrap items-baseline gap-2 text-sm">
             <span className="font-semibold">{c.author}</span>
             <span className="text-xs text-muted-foreground">&lt;{c.email}&gt;</span>
-            <span className="text-xs text-muted-foreground">on</span>
-            <span className="text-xs font-medium text-primary">{c.postTitle}</span>
+            {c.postTitle && (<>
+              <span className="text-xs text-muted-foreground">on</span>
+              <span className="text-xs font-medium text-primary">{c.postTitle}</span>
+            </>)}
             <span className="ml-auto text-xs text-muted-foreground">{c.date}</span>
           </div>
           <p className="mt-2 text-sm leading-relaxed">{c.body}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {c.status !== "approved" ? (
-              <button onClick={() => setStatus("approved", "Approved")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
+              <button onClick={() => onStatus("approved", "Approved")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
                 <Check className="h-3 w-3" /> Approve
               </button>
             ) : (
-              <button onClick={() => setStatus("pending", "Unapproved")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
+              <button onClick={() => onStatus("pending", "Unapproved")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
                 <Undo2 className="h-3 w-3" /> Unapprove
               </button>
             )}
@@ -181,12 +227,12 @@ function CommentCard({
               <Reply className="h-3 w-3" /> Reply
             </button>
             {c.status !== "spam" && (
-              <button onClick={() => setStatus("spam", "Marked spam")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
+              <button onClick={() => onStatus("spam", "Marked spam")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
                 <ShieldOff className="h-3 w-3" /> Spam
               </button>
             )}
             {c.status !== "trash" ? (
-              <button onClick={() => setStatus("trash", "Trashed")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
+              <button onClick={() => onStatus("trash", "Trashed")} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium hover:bg-muted">
                 <Trash2 className="h-3 w-3" /> Trash
               </button>
             ) : (
@@ -207,7 +253,7 @@ function CommentCard({
               <div className="mt-2 flex justify-end gap-2">
                 <button onClick={onReplyToggle} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Cancel</button>
                 <button
-                  onClick={() => { if (!replyText.trim()) return; toast.success("Reply sent (mock)"); onReplyToggle(); }}
+                  onClick={() => { if (!replyText.trim()) return; toast("Reply sending is not yet wired to the backend"); onReplyToggle(); }}
                   className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
                 >
                   Send reply

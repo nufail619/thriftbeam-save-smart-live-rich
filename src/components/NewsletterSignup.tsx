@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { newsletterApi } from "@/lib/api/newsletter";
 
 export default function NewsletterSignup({
   variant = "default",
@@ -8,15 +9,24 @@ export default function NewsletterSignup({
   variant?: "default" | "footer" | "coral";
 }) {
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.includes("@")) {
       toast.error("Please enter a valid email");
       return;
     }
-    toast.success("You're subscribed! Welcome to ThriftBeam.");
-    setEmail("");
+    setSubmitting(true);
+    try {
+      await newsletterApi.subscribe(email, `site-${variant}`);
+      toast.success("You're subscribed! Welcome to ThriftBeam.");
+      setEmail("");
+    } catch (err) {
+      toast.error((err as Error).message || "Could not subscribe. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (variant === "coral") {
@@ -34,10 +44,11 @@ export default function NewsletterSignup({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="flex-1 h-12 px-4 rounded-xl bg-white text-foreground placeholder:text-muted-foreground border border-border outline-none focus:border-accent"
+              disabled={submitting}
+              className="flex-1 h-12 px-4 rounded-xl bg-white text-foreground placeholder:text-muted-foreground border border-border outline-none focus:border-accent disabled:opacity-60"
             />
-            <button className="h-12 px-6 rounded-xl bg-accent text-accent-foreground font-semibold hover:opacity-90 transition-opacity">
-              Subscribe
+            <button disabled={submitting} className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-accent text-accent-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-60">
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Subscribe
             </button>
           </form>
           <p className="mt-3 text-sm text-foreground/60">Join 10,000+ subscribers</p>
@@ -55,10 +66,11 @@ export default function NewsletterSignup({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Your email"
           required
-          className="flex-1 h-11 px-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm outline-none focus:border-primary"
+          disabled={submitting}
+          className="flex-1 h-11 px-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm outline-none focus:border-primary disabled:opacity-60"
         />
-        <button className="h-11 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-1">
-          Join <ArrowRight className="h-4 w-4" />
+        <button disabled={submitting} className="inline-flex items-center gap-1 h-11 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60">
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join <ArrowRight className="h-4 w-4" /></>}
         </button>
       </form>
     );
@@ -72,10 +84,11 @@ export default function NewsletterSignup({
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Enter your email"
         required
-        className="flex-1 h-12 px-4 rounded-xl bg-surface border border-border outline-none focus:border-primary"
+        disabled={submitting}
+        className="flex-1 h-12 px-4 rounded-xl bg-surface border border-border outline-none focus:border-primary disabled:opacity-60"
       />
-      <button className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity">
-        Subscribe
+      <button disabled={submitting} className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity disabled:opacity-60">
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Subscribe
       </button>
     </form>
   );

@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import RichEditor from "@/components/admin/RichEditor";
 import SeoPanel from "@/components/admin/SeoPanel";
-import { pagesApi, slugify } from "@/lib/adminStore";
+import { pagesApi } from "@/lib/api/pages";
 import type { AdminPage, AdminPageStatus, AdminPageTemplate } from "@/lib/mockAdminData";
 
 export const Route = createFileRoute("/admin/_authenticated/pages/$id/edit")({
@@ -12,26 +14,56 @@ export const Route = createFileRoute("/admin/_authenticated/pages/$id/edit")({
 
 const TEMPLATES: AdminPageTemplate[] = ["default", "full-width", "landing", "legal"];
 
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 80);
+}
+
 function EditPageRoute() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const existing = pagesApi.get(id);
-  const [page, setPage] = useState<AdminPage | null>(existing ?? null);
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["pages", id],
+    queryFn: () => pagesApi.get(id),
+  });
 
-  useEffect(() => {
-    if (!existing) navigate({ to: "/admin/pages", replace: true });
-  }, [existing, navigate]);
+  const [page, setPage] = useState<AdminPage | null>(null);
+  useEffect(() => { if (data) setPage(data); }, [data]);
 
-  if (!page) return null;
+  const updateMut = useMutation({
+    mutationFn: (payload: Partial<AdminPage>) => pagesApi.update(id, payload),
+    onSuccess: (updated) => {
+      qc.setQueryData(["pages", id], updated);
+      qc.invalidateQueries({ queryKey: ["pages"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
 
-  const update = (patch: Partial<AdminPage>) => setPage({ ...page, ...patch });
+  if (isLoading) {
+    return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading page…</div>;
+  }
+  if (isError || !page) {
+    return (
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        Failed to load page: {(error as Error)?.message ?? "Not found"}.{" "}
+        <button className="underline" onClick={() => navigate({ to: "/admin/pages" })}>Back to pages</button>
+      </div>
+    );
+  }
 
-  const save = (status?: AdminPageStatus) => {
+  const update = (patch: Partial<AdminPage>) => setPage((p) => p ? { ...p, ...patch } : p);
+
+  const save = async (status?: AdminPageStatus) => {
+    if (!page) return;
     const payload = status ? { ...page, status } : page;
-    pagesApi.update(id, payload);
-    if (status) setPage(payload);
-    toast.success("Saved");
+    try {
+      const updated = await updateMut.mutateAsync(payload);
+      setPage(updated);
+      toast.success(status === "published" ? "Published" : "Saved");
+    } catch {/* toast handled */}
   };
+
+  const saving = updateMut.isPending;
 
   return (
     <div className="space-y-4 pb-24">
@@ -39,8 +71,12 @@ function EditPageRoute() {
         <h1 className="text-2xl font-bold tracking-tight">Edit page</h1>
         <div className="flex gap-2">
           <button onClick={() => navigate({ to: "/admin/pages" })} className="h-9 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted">Cancel</button>
-          <button onClick={() => save("draft")} className="h-9 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted">Save draft</button>
-          <button onClick={() => save("published")} className="h-9 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Publish</button>
+          <button disabled={saving} onClick={() => save("draft")} className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60">
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save draft
+          </button>
+          <button disabled={saving} onClick={() => save("published")} className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Publish
+          </button>
         </div>
       </div>
 

@@ -1,63 +1,34 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Clock, Facebook, Twitter, Linkedin, Link2, MessageCircle } from "lucide-react";
-import { getPost, getAuthor, getCategory, getRelated, formatDate, posts } from "@/lib/mockData";
+import { Clock, Facebook, Twitter, Linkedin, Link2, MessageCircle, Loader2 } from "lucide-react";
+import { getAuthor, getCategory, getRelated, formatDate, posts as fallbackPosts, type Post } from "@/lib/mockData";
+import { publicPostsApi } from "@/lib/api/publicPosts";
+import { commentsApi } from "@/lib/api/comments";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
 import NewsletterSignup from "@/components/NewsletterSignup";
 
 export const Route = createFileRoute("/blog/$slug")({
-  loader: ({ params }) => {
-    const post = getPost(params.slug);
-    if (!post) throw notFound();
-    return post;
-  },
-  head: ({ loaderData, params }) => {
-    if (!loaderData) return { meta: [{ title: "Post — ThriftBeam" }] };
-    const cat = getCategory(loaderData.category)?.name;
-    return {
-      meta: [
-        { title: `${loaderData.title} — ThriftBeam` },
-        { name: "description", content: loaderData.excerpt },
-        { property: "og:title", content: loaderData.title },
-        { property: "og:description", content: loaderData.excerpt },
-        { property: "og:image", content: loaderData.image },
-        { property: "og:type", content: "article" },
-        { property: "og:url", content: `/blog/${params.slug}` },
-        { property: "article:section", content: cat ?? "" },
-        { name: "twitter:image", content: loaderData.image },
-      ],
-      links: [{ rel: "canonical", href: `/blog/${params.slug}` }],
-      scripts: [
-        {
-          type: "application/ld+json",
-          children: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: loaderData.title,
-            description: loaderData.excerpt,
-            image: [loaderData.image],
-            datePublished: loaderData.date,
-            author: { "@type": "Person", name: getAuthor(loaderData.authorSlug)?.name ?? "ThriftBeam" },
-            publisher: { "@type": "Organization", name: "ThriftBeam" },
-          }),
-        },
-      ],
-    };
-  },
+  head: ({ params }) => ({
+    meta: [
+      { title: `Post — ThriftBeam` },
+      { property: "og:url", content: `/blog/${params.slug}` },
+    ],
+    links: [{ rel: "canonical", href: `/blog/${params.slug}` }],
+  }),
   notFoundComponent: () => (
     <div className="container-page py-20 text-center">
       <h1 className="text-3xl font-bold">Post not found</h1>
       <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">← Back to blog</Link>
     </div>
   ),
-  errorComponent: ({ error, reset }) => (
+  errorComponent: ({ error }) => (
     <div className="container-page py-20 text-center">
       <h1 className="text-2xl font-bold">Couldn't load this post</h1>
       <p className="mt-2 text-muted-foreground">{error.message}</p>
-      <button onClick={reset} className="mt-4 h-11 px-5 rounded-xl bg-primary text-primary-foreground font-semibold">Try again</button>
     </div>
   ),
   component: PostPage,
@@ -75,27 +46,34 @@ function extractHeadings(html: string): { html: string; headings: Heading[] } {
   return { html: replaced, headings };
 }
 
-function insertAds(html: string): string {
-  const parts = html.split("</p>");
-  if (parts.length < 4) return html;
-  const ad = `</p><div data-ad="in-article"></div>`;
-  parts[1] = parts[1] + ad;
-  const mid = Math.floor(parts.length / 2);
-  parts[mid] = parts[mid] + ad;
-  return parts.join("</p>");
-}
-
 function PostPage() {
-  const post = Route.useLoaderData();
-  const author = getAuthor(post.authorSlug)!;
-  const category = getCategory(post.category)!;
-  const related = getRelated(post, 3);
-  const popular = posts.slice(0, 5);
+  const { slug } = Route.useParams();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["public", "post", slug],
+    queryFn: () => publicPostsApi.bySlug(slug),
+    retry: false,
+  });
+
+  // Comments
+  const commentsQuery = useQuery({
+    queryKey: ["public", "comments", slug],
+    queryFn: () => commentsApi.approvedFor(slug),
+  });
+  const comments = commentsQuery.data ?? [];
+
+  const submitMut = useMutation({
+    mutationFn: (payload: { name: string; email: string; body: string }) =>
+      commentsApi.submit({ post_slug: slug, author: payload.name, email: payload.email, body: payload.body }),
+    onSuccess: () => {
+      toast.success("Comment submitted for review");
+      qc.invalidateQueries({ queryKey: ["public", "comments", slug] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const [progress, setProgress] = useState(0);
   const [tocOpen, setTocOpen] = useState(false);
-
-  const { html, headings } = extractHeadings(post.body);
-  const finalHtml = insertAds(html);
 
   useEffect(() => {
     const onScroll = () => {
@@ -108,6 +86,51 @@ function PostPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  if (isLoading) {
+    return <div className="container-page py-20 flex items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading post…</div>;
+  }
+  if (isError || !data) {
+    // Fallback to mock if backend not yet seeded
+    const fallback = fallbackPosts.find((p) => p.slug === slug);
+    if (!fallback) {
+      return (
+        <div className="container-page py-20 text-center">
+          <h1 className="text-3xl font-bold">Post not found</h1>
+          <p className="mt-2 text-muted-foreground">{(error as Error)?.message}</p>
+          <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">← Back to blog</Link>
+        </div>
+      );
+    }
+    return <PostBody post={fallback} comments={[]} commentsLoading={false} onSubmit={(p) => submitMut.mutate(p)} submitting={submitMut.isPending} progress={progress} tocOpen={tocOpen} setTocOpen={setTocOpen} />;
+  }
+
+  return <PostBody post={data} comments={comments} commentsLoading={commentsQuery.isLoading} onSubmit={(p) => submitMut.mutate(p)} submitting={submitMut.isPending} progress={progress} tocOpen={tocOpen} setTocOpen={setTocOpen} />;
+}
+
+function PostBody({
+  post,
+  comments,
+  commentsLoading,
+  onSubmit,
+  submitting,
+  progress,
+  tocOpen,
+  setTocOpen,
+}: {
+  post: Post;
+  comments: Array<{ id: string; author: string; body: string; date: string }>;
+  commentsLoading: boolean;
+  onSubmit: (p: { name: string; email: string; body: string }) => void;
+  submitting: boolean;
+  progress: number;
+  tocOpen: boolean;
+  setTocOpen: (v: boolean) => void;
+}) {
+  const author = getAuthor(post.authorSlug);
+  const category = getCategory(post.category);
+  const related = getRelated(post, 3);
+  const { html, headings } = extractHeadings(post.body || "");
+
   function share(network: string) {
     const url = typeof window !== "undefined" ? window.location.href : "";
     const links: Record<string, string> = {
@@ -115,32 +138,13 @@ function PostPage() {
       twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(url)}`,
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
     };
-    if (network === "copy") {
-      navigator.clipboard.writeText(url);
-      toast.success("Link copied");
-      return;
-    }
+    if (network === "copy") { navigator.clipboard.writeText(url); toast.success("Link copied"); return; }
     window.open(links[network], "_blank", "noopener,noreferrer");
   }
 
-  // Render body: split on the ad marker
-  const segments = finalHtml.split('<div data-ad="in-article"></div>');
-
   return (
     <>
-      <style>{`
-        .article-body p {
-          text-align: left;
-        }
-        @media (min-width: 768px) {
-          .article-body p {
-            text-align: justify;
-            hyphens: auto;
-          }
-        }
-      `}</style>
-
-      {/* Reading progress */}
+      <style>{`.article-body p { text-align: left; } @media (min-width: 768px) { .article-body p { text-align: justify; hyphens: auto; } }`}</style>
       <div className="fixed top-0 left-0 right-0 h-1 z-50 bg-transparent">
         <div className="h-full bg-primary transition-[width] duration-100" style={{ width: `${progress}%` }} />
       </div>
@@ -149,20 +153,24 @@ function PostPage() {
         <Breadcrumbs items={[
           { label: "Home", to: "/" },
           { label: "Blog", to: "/blog" },
-          { label: category.name },
+          ...(category ? [{ label: category.name }] : []),
           { label: post.title },
         ]} />
 
         <header className="mt-6 max-w-3xl">
-          <Link to="/blog" search={{ category: category.slug }} className="inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-            {category.name}
-          </Link>
+          {category && (
+            <Link to="/blog" search={{ category: category.slug }} className="inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+              {category.name}
+            </Link>
+          )}
           <h1 className="mt-4 text-3xl md:text-5xl font-bold tracking-tight leading-tight">{post.title}</h1>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <img src={author.avatar} alt="" loading="lazy" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
-              <span className="font-medium text-foreground">{author.name}</span>
-            </div>
+            {author && (
+              <div className="flex items-center gap-2">
+                <img src={author.avatar} alt="" loading="lazy" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
+                <span className="font-medium text-foreground">{author.name}</span>
+              </div>
+            )}
             <span>·</span>
             <span>{formatDate(post.date)}</span>
             <span>·</span>
@@ -182,7 +190,6 @@ function PostPage() {
 
         <div className="mt-10 grid lg:grid-cols-[1fr_300px] gap-10">
           <div className="min-w-0 prose-container lg:mx-0">
-            {/* Mobile TOC */}
             {headings.length > 0 && (
               <details open={tocOpen} onToggle={(e) => setTocOpen((e.target as HTMLDetailsElement).open)} className="lg:hidden rounded-xl border border-border bg-card mb-6">
                 <summary className="px-4 py-3 font-semibold cursor-pointer select-none">Table of contents</summary>
@@ -196,42 +203,31 @@ function PostPage() {
               </details>
             )}
 
-            <div className="prose-tb max-w-none article-body">
-              {segments.map((seg, i) => (
-                <div key={i}>
-                  <div dangerouslySetInnerHTML={{ __html: seg }} />
-                  {i < segments.length - 1 && <div className="my-8"><AdSlot size="in-article" /></div>}
-                </div>
-              ))}
-            </div>
+            <div className="prose-tb max-w-none article-body" dangerouslySetInnerHTML={{ __html: html }} />
 
             <div className="my-10"><AdSlot size="banner" /></div>
 
-            {/* Tags */}
             <div className="mt-8 flex flex-wrap gap-2">
-              {post.tags.map((t: string) => (
-                <span key={t} className="px-3 py-1 rounded-full bg-muted text-sm">#{t}</span>
-              ))}
+              {post.tags.map((t) => (<span key={t} className="px-3 py-1 rounded-full bg-muted text-sm">#{t}</span>))}
             </div>
 
-            {/* Author bio */}
-            <div className="mt-10 rounded-2xl border border-border bg-surface p-6 flex flex-col sm:flex-row gap-4 items-start">
-              <img src={author.avatar} alt={author.name} width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
-              <div>
-                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">{author.role}</p>
-                <h3 className="font-bold text-lg">{author.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{author.bio}</p>
+            {author && (
+              <div className="mt-10 rounded-2xl border border-border bg-surface p-6 flex flex-col sm:flex-row gap-4 items-start">
+                <img src={author.avatar} alt={author.name} width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
+                <div>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">{author.role}</p>
+                  <h3 className="font-bold text-lg">{author.name}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{author.bio}</p>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Newsletter */}
             <div className="mt-8 rounded-2xl bg-primary/5 border border-primary/20 p-6">
               <h3 className="font-bold text-xl">Like this post? Get more like it.</h3>
               <p className="mt-1 text-sm text-muted-foreground">One actionable money guide every Sunday.</p>
               <div className="mt-4"><NewsletterSignup /></div>
             </div>
 
-            {/* Related */}
             {related.length > 0 && (
               <section className="mt-12">
                 <h2 className="text-2xl font-bold mb-6">Related posts</h2>
@@ -241,33 +237,53 @@ function PostPage() {
               </section>
             )}
 
-            {/* Comments */}
             <section className="mt-12">
-              <h2 className="text-2xl font-bold mb-6 inline-flex items-center gap-2"><MessageCircle className="h-5 w-5" /> Comments (3)</h2>
-              <ul className="space-y-5">
-                {[
-                  { name: "Alex P.", date: "2 days ago", body: "This finally made the snowball method click for me. Thanks!" },
-                  { name: "Jordan R.", date: "5 days ago", body: "Used your worksheet last weekend — found $94/mo in subscriptions I forgot about." },
-                  { name: "Priya S.", date: "1 week ago", body: "Would love a follow-up on irregular income budgeting." },
-                ].map((c, i) => (
-                  <li key={i} className="rounded-xl border border-border p-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <strong>{c.name}</strong>
-                      <span className="text-muted-foreground text-xs">{c.date}</span>
-                    </div>
-                    <p className="mt-2 text-sm">{c.body}</p>
-                  </li>
-                ))}
-              </ul>
-              <form onSubmit={(e) => { e.preventDefault(); toast.success("Comment submitted for review"); (e.target as HTMLFormElement).reset(); }} className="mt-6 space-y-3">
-                <input required placeholder="Your name" className="w-full h-11 px-4 rounded-xl border border-border bg-background outline-none focus:border-primary" />
-                <textarea required placeholder="Share your thoughts…" rows={4} className="w-full px-4 py-3 rounded-xl border border-border bg-background outline-none focus:border-primary resize-y" />
-                <button className="h-11 px-5 rounded-xl bg-primary text-primary-foreground font-semibold">Post comment</button>
+              <h2 className="text-2xl font-bold mb-6 inline-flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" /> Comments ({comments.length})
+              </h2>
+              {commentsLoading ? (
+                <div className="text-sm text-muted-foreground"><Loader2 className="inline mr-2 h-4 w-4 animate-spin" /> Loading comments…</div>
+              ) : (
+                <ul className="space-y-5">
+                  {comments.length === 0 ? (
+                    <li className="text-sm text-muted-foreground">Be the first to comment.</li>
+                  ) : comments.map((c) => (
+                    <li key={c.id} className="rounded-xl border border-border p-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <strong>{c.author}</strong>
+                        <span className="text-muted-foreground text-xs">{c.date}</span>
+                      </div>
+                      <p className="mt-2 text-sm">{c.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const f = e.target as HTMLFormElement;
+                  const fd = new FormData(f);
+                  const name = String(fd.get("name") ?? "").trim();
+                  const email = String(fd.get("email") ?? "").trim();
+                  const body = String(fd.get("body") ?? "").trim();
+                  if (!name || !email || !body) return;
+                  onSubmit({ name, email, body });
+                  f.reset();
+                }}
+                className="mt-6 space-y-3"
+              >
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input name="name" required placeholder="Your name" className="w-full h-11 px-4 rounded-xl border border-border bg-background outline-none focus:border-primary" />
+                  <input name="email" required type="email" placeholder="you@example.com" className="w-full h-11 px-4 rounded-xl border border-border bg-background outline-none focus:border-primary" />
+                </div>
+                <textarea name="body" required placeholder="Share your thoughts…" rows={4} className="w-full px-4 py-3 rounded-xl border border-border bg-background outline-none focus:border-primary resize-y" />
+                <button disabled={submitting} className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-primary text-primary-foreground font-semibold disabled:opacity-60">
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Post comment
+                </button>
               </form>
             </section>
           </div>
 
-          {/* Sidebar */}
           <aside className="hidden lg:flex flex-col gap-6">
             {headings.length > 0 && (
               <div className="sticky top-20 rounded-2xl border border-border bg-card p-5">
@@ -281,16 +297,6 @@ function PostPage() {
                 </ul>
               </div>
             )}
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="font-semibold mb-3">Popular</h3>
-              <ul className="space-y-3">
-                {popular.map((p) => (
-                  <li key={p.slug}>
-                    <Link to="/blog/$slug" params={{ slug: p.slug }} className="text-sm font-medium hover:text-primary line-clamp-2 block">{p.title}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
             <AdSlot size="skyscraper" />
           </aside>
         </div>
@@ -306,3 +312,6 @@ function ShareBtn({ children, label, onClick }: { children: React.ReactNode; lab
     </button>
   );
 }
+
+function notFoundFn() { throw notFound(); }
+void notFoundFn;
