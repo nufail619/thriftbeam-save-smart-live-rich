@@ -39,7 +39,7 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const dirtyRef = useRef(false);
 
-  const update = <K extends keyof AdminPost>(patch: Partial<AdminPost>) => {
+  const update = (patch: Partial<AdminPost>) => {
     setPost((p) => ({ ...p, ...patch }) as AdminPost);
     dirtyRef.current = true;
   };
