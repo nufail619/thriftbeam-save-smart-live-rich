@@ -89,10 +89,10 @@ function DashboardPage() {
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Posts" value={stats.totalPosts.value} delta={stats.totalPosts.delta} icon={FileText} loading={isLoading} />
-        <StatCard label="Total Views" value={stats.totalViews.value} delta={stats.totalViews.delta} icon={Eye} loading={isLoading} />
-        <StatCard label="Subscribers" value={stats.subscribers.value} delta={stats.subscribers.delta} icon={Users} loading={isLoading} />
-        <StatCard label="Comments Pending" value={stats.commentsPending.value} delta={stats.commentsPending.delta} icon={MessageSquare} loading={isLoading} />
+        <StatCard label="Total Posts" value={stats.totalPosts.value} delta={stats.totalPosts.delta} icon={FileText} />
+        <StatCard label="Total Views" value={stats.totalViews.value} delta={stats.totalViews.delta} icon={Eye} />
+        <StatCard label="Subscribers" value={stats.subscribers.value} delta={stats.subscribers.delta} icon={Users} />
+        <StatCard label="Comments Pending" value={stats.commentsPending.value} delta={stats.commentsPending.delta} icon={MessageSquare} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
