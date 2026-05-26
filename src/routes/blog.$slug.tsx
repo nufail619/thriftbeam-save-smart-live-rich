@@ -196,7 +196,7 @@ function PostPage() {
               </details>
             )}
 
-            <div className="prose-tb max-w-none">
+            <div className="prose-tb max-w-none article-body">
               {segments.map((seg, i) => (
                 <div key={i}>
                   <div dangerouslySetInnerHTML={{ __html: seg }} />
