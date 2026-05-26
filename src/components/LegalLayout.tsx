@@ -25,8 +25,9 @@ export default function LegalLayout({
         <p className="mt-2 text-xs text-muted-foreground">Last updated: {updated}</p>
       </header>
 
-      <div className="mt-10 grid lg:grid-cols-[1fr_240px] gap-10 max-w-5xl">
-        <div className="prose-tb space-y-10">
+      <div className="mt-10 grid lg:grid-cols-[1fr_240px] gap-10">
+        <div className="prose-tb prose-container lg:mx-0 space-y-10">
+
           {sections.map((s) => (
             <section key={s.id} id={s.id} className="scroll-mt-24">
               <h2 className="text-2xl font-bold">{s.title}</h2>
