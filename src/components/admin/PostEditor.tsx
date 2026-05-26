@@ -94,23 +94,27 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
           </button>
           <button
             type="button"
+            disabled={saving}
             onClick={() => save("draft")}
-            className="h-9 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60"
           >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Save draft
           </button>
           <button
             type="button"
-            onClick={() => toast("Preview is mock — connect backend to preview")}
+            onClick={() => window.open(post.slug ? `/blog/${post.slug}` : "/", "_blank")}
             className="h-9 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
           >
             Preview
           </button>
           <button
             type="button"
+            disabled={saving}
             onClick={() => save("published")}
-            className="h-9 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
           >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Publish
           </button>
         </div>
