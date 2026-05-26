@@ -1,79 +1,77 @@
-# Phase 2 QA — Findings & Fixes
+# Phase 3 — Polish & QA
 
-I audited `/tools` and each calculator route. The pages, routing, SEO heads, breadcrumbs, related-tools section, ad slots, and form inputs all work correctly. Two real issues found, both centered on the result panel.
+Legal/marketing pages (About, Contact, Privacy, Disclaimer) already exist and are theme-consistent. Phase 3 is the final polish pass per the original plan: search refinement, 404 styling, accessibility, and mobile QA — plus light touch-ups on the existing pages where audit findings warrant.
 
-## Findings
+## 1. Page audits (About, Contact, Privacy, Disclaimer)
 
-1. **Theme violation — dark indigo `ResultPanel`**
-   `src/components/calculators/shared.tsx` renders the result column as a deep indigo gradient (`linear-gradient(135deg, #4F46E5 → #6366F1)`) with white text. This directly contradicts the "light theme only, remove all dark sections" rule applied in the previous turn. Every calculator inherits it.
+Read each route end-to-end and confirm:
+- Distinct `head()` metadata (title, description, og:title, og:description, canonical) — already in place; verify no copy-paste of home meta.
+- Single `h1`, ordered heading hierarchy, semantic landmarks, alt text on images.
+- All interactive elements (FAQ `<details>`, social links, form fields) keyboard-reachable with visible focus rings.
 
-2. **Charts are not rendering**
-   Confirmed visually on `/tools/budget-calculator` (pie chart area is blank inside the indigo panel) and `/tools/debt-payoff` (line chart area is blank). No console errors. Recharts is installed (`^2.15.4`). Likely cause: `ResponsiveContainer` inside the panel's stacked `space-y-3` flow doesn't get a measurable height in some SSR/hydration ordering, OR the chart strokes (`rgba(255,255,255,0.15)` grid, white axis text) hide against the indigo bg when the chart does paint. Either way the chart slot reads as broken.
+Specific touch-ups expected:
+- **Contact form**: replace inline `<style>` block with Tailwind utility classes on inputs (border, focus ring uses `ring-primary/30`); add `aria-label` to social icon links instead of generic "Social"; add `htmlFor`/`id` pairing on `FormField`.
+- **Privacy / Disclaimer**: confirm `LegalLayout` TOC anchor links have `focus-visible` styling and that `scroll-mt-24` clears the sticky navbar at mobile widths too (bump to `scroll-mt-28` if needed).
+- **About**: image `loading="lazy"` is set; verify team avatars have meaningful alt (name).
 
-3. **Hard-coded dark styling baked into chart configs**
-   - Tooltip `contentStyle={{ background: "#0F172A", ... }}` in Budget, Savings, Debt.
-   - Axis/grid stroke `rgba(255,255,255,…)` in Debt, Savings.
-   - `EmergencyFundCalculator` progress bar track uses `bg-white/15`.
-   - `CreditCardInterestCalculator` "scenario" cards use `bg-white/10`.
-   All of these only read correctly on a dark surface.
+## 2. Search refinement (`SearchModal.tsx`)
 
-4. **`ResultRow` text colors hard-coded**
-   Uses `text-white`, `text-white/70`, `text-emerald-300`, `text-rose-300`. Needs to be theme-aware.
+Current modal works but is thin. Refinements:
+- Add result highlighting — bold the matched substring in title.
+- Group results by category when query is empty (show 2 per top category, "Recent" label).
+- Empty-state copy: add small CTA ("Browse all posts →" linking `/blog`).
+- A11y: add `role="dialog"`, `aria-modal="true"`, `aria-label="Search"`; trap focus inside modal; restore focus to trigger on close.
+- Add small "↵ to open" hint next to ESC kbd; arrow-key navigation through results with Enter to open.
+- Debounce filtering is unnecessary (in-memory) but memoize `results` with `useMemo`.
 
-5. **Minor — `Field` numeric input**
-   On iOS, leading `$`/`%` prefix overlaps with the spinner. Not blocking, but worth a small fix when we're already in the file.
+## 3. 404 styling (`__root.tsx` `NotFoundComponent`)
 
-Everything else (tools index grid, breadcrumbs, related-tools cards, ad slots, head metadata, 404 + error boundaries) checks out at 1440 desktop.
+Current 404 is functional but plain. Upgrade:
+- Add a large display-style numeral ("404") with gradient text using brand tokens.
+- Add a secondary action: "Browse articles" linking `/blog` alongside "Back to Home".
+- Add a small "Popular right now" list (3 featured posts from `mockData`) so users land somewhere useful.
+- Add `<head>` meta with `noindex` for the 404 response.
+- Apply same polish to `ErrorComponent` (keep retry + home, add subtle icon).
 
-## Fix plan
+## 4. Accessibility pass (site-wide)
 
-### 1. Rebuild `ResultPanel` as light-theme card
-`src/components/calculators/shared.tsx`:
+Run a focused audit and fix:
+- **Icon-only buttons**: every `<button>`/`<a>` with just a Lucide icon gets `aria-label` (Navbar search/menu/theme toggle, Footer socials, Contact socials, SearchModal close, mobile hamburger).
+- **Color contrast**: scan for any `text-muted-foreground` on `bg-surface` combos that drop below 4.5:1 — adjust token if needed.
+- **Focus rings**: ensure all interactive elements show `focus-visible:ring-2 focus-visible:ring-primary/40` (buttons, links, form inputs, FAQ summaries, cookie banner buttons).
+- **Skip link**: add a "Skip to content" link in `__root.tsx` that becomes visible on focus and jumps to `<main id="main">`.
+- **Forms**: associate every label/input via `htmlFor`/`id` (Contact form, Newsletter signup).
+- **Headings**: verify no skipped levels on any route.
+- **Reduced motion**: ensure animations respect `prefers-reduced-motion` (announcement bar marquee, hover lifts).
 
-- Replace the indigo gradient with the same light card treatment used elsewhere: `bg-card border border-border rounded-2xl p-6 shadow-card`.
-- Add a soft brand accent: small `bg-primary/5` top band or a `text-primary` title color so the result side still feels like the "answer" zone. Keep title bold, body using `text-foreground` / `text-muted-foreground`.
-- Remove the `absolute -top-20 -right-20 ... bg-white/10 blur-3xl` decoration.
+## 5. Mobile QA sweep
 
-### 2. Theme-correct `ResultRow`
-- Label: `text-muted-foreground`.
-- Value: `text-foreground`.
-- Highlights: `good` → `text-emerald-600`, `bad` → `text-rose-600` (keeps semantic meaning, readable on white).
+Browser-test at 320, 375, 414, 768 px on each route:
+- `/`, `/blog`, `/blog/[slug]`, `/tools`, `/tools/[slug]` (one calculator), `/about`, `/contact`, `/privacy`, `/disclaimer`, and an unmatched URL for 404.
 
-### 3. Recolor every chart for light bg
-For each chart inside the calculators:
+For each, confirm:
+- No horizontal scroll, no overlapping elements.
+- Tap targets ≥ 44×44.
+- Navbar hamburger opens/closes; SearchModal usable on mobile.
+- Cookie banner doesn't trap viewport.
+- Sticky TOC on `LegalLayout` is hidden on mobile (already `hidden lg:block`); confirm prose width and section padding feel right.
+- Charts on calculators don't overflow on 320px.
+- Contact form inputs aren't zoomed by iOS Safari (font-size ≥ 16px on inputs).
 
-- `CartesianGrid` stroke → `hsl(var(--border))` (or `#E2E8F0`).
-- `XAxis` / `YAxis` stroke + tick → `#64748B` (muted-foreground).
-- `Tooltip contentStyle` → `{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: 12, color: "#0F172A", boxShadow: "0 8px 24px rgba(15,23,42,0.08)" }`.
-- Pie/Line strokes: keep brand colors but make sure the donut slices use `#2563EB` (primary), `#FB7185` (accent), `#10B981` (success-green) — already accent + green, just swap indigo for primary blue.
-- BudgetCalculator `Legend` wrapperStyle → `{ color: "#0F172A" }`.
-
-### 4. Fix the not-rendering chart
-- Wrap each chart container in an explicit min-height so `ResponsiveContainer` always has space pre-hydration:
-  `<div className="mt-4 h-56 w-full min-h-[224px]">`.
-- Ensure the parent panel uses `flex flex-col` so the chart row doesn't get collapsed by `space-y-*` interactions on first paint.
-- If after that a chart still doesn't render, gate it behind a small `useIsClient` mount guard inside the calculator file (recharts + SSR is a known footgun).
-
-### 5. Light-bg fixes in individual calculators
-- `EmergencyFundCalculator`: progress track `bg-surface-2` (or `bg-muted`), fill `bg-primary`. Replace the `border-white/10` divider with `border-border`.
-- `CreditCardInterestCalculator`: scenario sub-cards → `bg-surface border border-border rounded-xl p-4`; the small uppercase eyebrow → `text-muted-foreground`; error messages → `text-rose-600`.
-- `SavingsGoalCalculator` "not possible" message → `text-rose-600`.
-
-### 6. `shared.tsx` `Field` polish
-- Bump input height consistency (`h-12` already), keep prefix/suffix.
-- Add `pr-3` when no suffix to give the native spinner room on Safari (small, optional).
-
-### 7. Re-QA after fixes
-Walk all five tool routes at 1440 desktop and 390 mobile:
-- `/tools/budget-calculator` — pie chart visible, legend readable, totals correct.
-- `/tools/debt-payoff` — line chart visible on white, balance trends down.
-- `/tools/savings-goal` — line chart visible, "years to goal" shows.
-- `/tools/emergency-fund` — progress bar fills smoothly, target updates with months toggle.
-- `/tools/credit-card-interest` — both scenario cards readable, "you save" highlight green.
-Also confirm `/tools` index card hover still lifts and related-tools grid stays 4-up at `lg`.
+Screenshot deltas reported back in chat.
 
 ## Out of scope
-- No copy changes to "How this works" / tips.
-- No new calculators.
-- No new routes, SEO, or backend.
-- Homepage / blog / legal pages untouched.
+
+- No new routes, content sections, or backend.
+- No design-system rework — only token-aligned polish.
+- No homepage / tools logic changes.
+- No analytics or consent backend (CookieConsent UI only).
+
+## Files expected to change
+
+- `src/components/SearchModal.tsx` — refinement + a11y
+- `src/routes/__root.tsx` — 404 + error polish, skip link, single `<main id="main">`
+- `src/routes/contact.tsx` — Tailwind input classes, label associations, social aria-labels
+- `src/components/LegalLayout.tsx` — focus styles on TOC, scroll-margin tweak
+- `src/components/Navbar.tsx`, `src/components/Footer.tsx`, `src/components/NewsletterSignup.tsx`, `src/components/CookieConsent.tsx` — aria-labels, focus rings, label associations as needed
+- `src/styles.css` — reduced-motion media query if any animation lacks it
