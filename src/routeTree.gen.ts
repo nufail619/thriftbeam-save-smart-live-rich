@@ -27,8 +27,6 @@ import { Route as AdminAuthenticatedThemeRouteImport } from './routes/admin._aut
 import { Route as AdminAuthenticatedSettingsRouteImport } from './routes/admin._authenticated.settings'
 import { Route as AdminAuthenticatedSeoRouteImport } from './routes/admin._authenticated.seo'
 import { Route as AdminAuthenticatedPwaRouteImport } from './routes/admin._authenticated.pwa'
-import { Route as AdminAuthenticatedPostsRouteImport } from './routes/admin._authenticated.posts'
-import { Route as AdminAuthenticatedPagesRouteImport } from './routes/admin._authenticated.pages'
 import { Route as AdminAuthenticatedNotificationsRouteImport } from './routes/admin._authenticated.notifications'
 import { Route as AdminAuthenticatedNewsletterRouteImport } from './routes/admin._authenticated.newsletter'
 import { Route as AdminAuthenticatedMediaRouteImport } from './routes/admin._authenticated.media'
@@ -39,6 +37,8 @@ import { Route as AdminAuthenticatedCommentsRouteImport } from './routes/admin._
 import { Route as AdminAuthenticatedCacheRouteImport } from './routes/admin._authenticated.cache'
 import { Route as AdminAuthenticatedBackupRouteImport } from './routes/admin._authenticated.backup'
 import { Route as AdminAuthenticatedAnalyticsRouteImport } from './routes/admin._authenticated.analytics'
+import { Route as AdminAuthenticatedPostsIndexRouteImport } from './routes/admin._authenticated.posts.index'
+import { Route as AdminAuthenticatedPagesIndexRouteImport } from './routes/admin._authenticated.pages.index'
 import { Route as AdminAuthenticatedPostsNewRouteImport } from './routes/admin._authenticated.posts.new'
 import { Route as AdminAuthenticatedPostsIdEditRouteImport } from './routes/admin._authenticated.posts.$id.edit'
 import { Route as AdminAuthenticatedPagesIdEditRouteImport } from './routes/admin._authenticated.pages.$id.edit'
@@ -134,16 +134,6 @@ const AdminAuthenticatedPwaRoute = AdminAuthenticatedPwaRouteImport.update({
   path: '/pwa',
   getParentRoute: () => AdminAuthenticatedRoute,
 } as any)
-const AdminAuthenticatedPostsRoute = AdminAuthenticatedPostsRouteImport.update({
-  id: '/posts',
-  path: '/posts',
-  getParentRoute: () => AdminAuthenticatedRoute,
-} as any)
-const AdminAuthenticatedPagesRoute = AdminAuthenticatedPagesRouteImport.update({
-  id: '/pages',
-  path: '/pages',
-  getParentRoute: () => AdminAuthenticatedRoute,
-} as any)
 const AdminAuthenticatedNotificationsRoute =
   AdminAuthenticatedNotificationsRouteImport.update({
     id: '/notifications',
@@ -202,23 +192,35 @@ const AdminAuthenticatedAnalyticsRoute =
     path: '/analytics',
     getParentRoute: () => AdminAuthenticatedRoute,
   } as any)
+const AdminAuthenticatedPostsIndexRoute =
+  AdminAuthenticatedPostsIndexRouteImport.update({
+    id: '/posts/',
+    path: '/posts/',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
+const AdminAuthenticatedPagesIndexRoute =
+  AdminAuthenticatedPagesIndexRouteImport.update({
+    id: '/pages/',
+    path: '/pages/',
+    getParentRoute: () => AdminAuthenticatedRoute,
+  } as any)
 const AdminAuthenticatedPostsNewRoute =
   AdminAuthenticatedPostsNewRouteImport.update({
-    id: '/new',
-    path: '/new',
-    getParentRoute: () => AdminAuthenticatedPostsRoute,
+    id: '/posts/new',
+    path: '/posts/new',
+    getParentRoute: () => AdminAuthenticatedRoute,
   } as any)
 const AdminAuthenticatedPostsIdEditRoute =
   AdminAuthenticatedPostsIdEditRouteImport.update({
-    id: '/$id/edit',
-    path: '/$id/edit',
-    getParentRoute: () => AdminAuthenticatedPostsRoute,
+    id: '/posts/$id/edit',
+    path: '/posts/$id/edit',
+    getParentRoute: () => AdminAuthenticatedRoute,
   } as any)
 const AdminAuthenticatedPagesIdEditRoute =
   AdminAuthenticatedPagesIdEditRouteImport.update({
-    id: '/$id/edit',
-    path: '/$id/edit',
-    getParentRoute: () => AdminAuthenticatedPagesRoute,
+    id: '/pages/$id/edit',
+    path: '/pages/$id/edit',
+    getParentRoute: () => AdminAuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -243,8 +245,6 @@ export interface FileRoutesByFullPath {
   '/admin/media': typeof AdminAuthenticatedMediaRoute
   '/admin/newsletter': typeof AdminAuthenticatedNewsletterRoute
   '/admin/notifications': typeof AdminAuthenticatedNotificationsRoute
-  '/admin/pages': typeof AdminAuthenticatedPagesRouteWithChildren
-  '/admin/posts': typeof AdminAuthenticatedPostsRouteWithChildren
   '/admin/pwa': typeof AdminAuthenticatedPwaRoute
   '/admin/seo': typeof AdminAuthenticatedSeoRoute
   '/admin/settings': typeof AdminAuthenticatedSettingsRoute
@@ -253,6 +253,8 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminAuthenticatedUsersRoute
   '/admin/': typeof AdminAuthenticatedIndexRoute
   '/admin/posts/new': typeof AdminAuthenticatedPostsNewRoute
+  '/admin/pages/': typeof AdminAuthenticatedPagesIndexRoute
+  '/admin/posts/': typeof AdminAuthenticatedPostsIndexRoute
   '/admin/pages/$id/edit': typeof AdminAuthenticatedPagesIdEditRoute
   '/admin/posts/$id/edit': typeof AdminAuthenticatedPostsIdEditRoute
 }
@@ -277,8 +279,6 @@ export interface FileRoutesByTo {
   '/admin/media': typeof AdminAuthenticatedMediaRoute
   '/admin/newsletter': typeof AdminAuthenticatedNewsletterRoute
   '/admin/notifications': typeof AdminAuthenticatedNotificationsRoute
-  '/admin/pages': typeof AdminAuthenticatedPagesRouteWithChildren
-  '/admin/posts': typeof AdminAuthenticatedPostsRouteWithChildren
   '/admin/pwa': typeof AdminAuthenticatedPwaRoute
   '/admin/seo': typeof AdminAuthenticatedSeoRoute
   '/admin/settings': typeof AdminAuthenticatedSettingsRoute
@@ -287,6 +287,8 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminAuthenticatedUsersRoute
   '/admin': typeof AdminAuthenticatedIndexRoute
   '/admin/posts/new': typeof AdminAuthenticatedPostsNewRoute
+  '/admin/pages': typeof AdminAuthenticatedPagesIndexRoute
+  '/admin/posts': typeof AdminAuthenticatedPostsIndexRoute
   '/admin/pages/$id/edit': typeof AdminAuthenticatedPagesIdEditRoute
   '/admin/posts/$id/edit': typeof AdminAuthenticatedPostsIdEditRoute
 }
@@ -313,8 +315,6 @@ export interface FileRoutesById {
   '/admin/_authenticated/media': typeof AdminAuthenticatedMediaRoute
   '/admin/_authenticated/newsletter': typeof AdminAuthenticatedNewsletterRoute
   '/admin/_authenticated/notifications': typeof AdminAuthenticatedNotificationsRoute
-  '/admin/_authenticated/pages': typeof AdminAuthenticatedPagesRouteWithChildren
-  '/admin/_authenticated/posts': typeof AdminAuthenticatedPostsRouteWithChildren
   '/admin/_authenticated/pwa': typeof AdminAuthenticatedPwaRoute
   '/admin/_authenticated/seo': typeof AdminAuthenticatedSeoRoute
   '/admin/_authenticated/settings': typeof AdminAuthenticatedSettingsRoute
@@ -323,6 +323,8 @@ export interface FileRoutesById {
   '/admin/_authenticated/users': typeof AdminAuthenticatedUsersRoute
   '/admin/_authenticated/': typeof AdminAuthenticatedIndexRoute
   '/admin/_authenticated/posts/new': typeof AdminAuthenticatedPostsNewRoute
+  '/admin/_authenticated/pages/': typeof AdminAuthenticatedPagesIndexRoute
+  '/admin/_authenticated/posts/': typeof AdminAuthenticatedPostsIndexRoute
   '/admin/_authenticated/pages/$id/edit': typeof AdminAuthenticatedPagesIdEditRoute
   '/admin/_authenticated/posts/$id/edit': typeof AdminAuthenticatedPostsIdEditRoute
 }
@@ -350,8 +352,6 @@ export interface FileRouteTypes {
     | '/admin/media'
     | '/admin/newsletter'
     | '/admin/notifications'
-    | '/admin/pages'
-    | '/admin/posts'
     | '/admin/pwa'
     | '/admin/seo'
     | '/admin/settings'
@@ -360,6 +360,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/'
     | '/admin/posts/new'
+    | '/admin/pages/'
+    | '/admin/posts/'
     | '/admin/pages/$id/edit'
     | '/admin/posts/$id/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -384,8 +386,6 @@ export interface FileRouteTypes {
     | '/admin/media'
     | '/admin/newsletter'
     | '/admin/notifications'
-    | '/admin/pages'
-    | '/admin/posts'
     | '/admin/pwa'
     | '/admin/seo'
     | '/admin/settings'
@@ -394,6 +394,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin'
     | '/admin/posts/new'
+    | '/admin/pages'
+    | '/admin/posts'
     | '/admin/pages/$id/edit'
     | '/admin/posts/$id/edit'
   id:
@@ -419,8 +421,6 @@ export interface FileRouteTypes {
     | '/admin/_authenticated/media'
     | '/admin/_authenticated/newsletter'
     | '/admin/_authenticated/notifications'
-    | '/admin/_authenticated/pages'
-    | '/admin/_authenticated/posts'
     | '/admin/_authenticated/pwa'
     | '/admin/_authenticated/seo'
     | '/admin/_authenticated/settings'
@@ -429,6 +429,8 @@ export interface FileRouteTypes {
     | '/admin/_authenticated/users'
     | '/admin/_authenticated/'
     | '/admin/_authenticated/posts/new'
+    | '/admin/_authenticated/pages/'
+    | '/admin/_authenticated/posts/'
     | '/admin/_authenticated/pages/$id/edit'
     | '/admin/_authenticated/posts/$id/edit'
   fileRoutesById: FileRoutesById
@@ -575,20 +577,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuthenticatedPwaRouteImport
       parentRoute: typeof AdminAuthenticatedRoute
     }
-    '/admin/_authenticated/posts': {
-      id: '/admin/_authenticated/posts'
-      path: '/posts'
-      fullPath: '/admin/posts'
-      preLoaderRoute: typeof AdminAuthenticatedPostsRouteImport
-      parentRoute: typeof AdminAuthenticatedRoute
-    }
-    '/admin/_authenticated/pages': {
-      id: '/admin/_authenticated/pages'
-      path: '/pages'
-      fullPath: '/admin/pages'
-      preLoaderRoute: typeof AdminAuthenticatedPagesRouteImport
-      parentRoute: typeof AdminAuthenticatedRoute
-    }
     '/admin/_authenticated/notifications': {
       id: '/admin/_authenticated/notifications'
       path: '/notifications'
@@ -659,59 +647,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuthenticatedAnalyticsRouteImport
       parentRoute: typeof AdminAuthenticatedRoute
     }
+    '/admin/_authenticated/posts/': {
+      id: '/admin/_authenticated/posts/'
+      path: '/posts'
+      fullPath: '/admin/posts/'
+      preLoaderRoute: typeof AdminAuthenticatedPostsIndexRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
+    '/admin/_authenticated/pages/': {
+      id: '/admin/_authenticated/pages/'
+      path: '/pages'
+      fullPath: '/admin/pages/'
+      preLoaderRoute: typeof AdminAuthenticatedPagesIndexRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
     '/admin/_authenticated/posts/new': {
       id: '/admin/_authenticated/posts/new'
-      path: '/new'
+      path: '/posts/new'
       fullPath: '/admin/posts/new'
       preLoaderRoute: typeof AdminAuthenticatedPostsNewRouteImport
-      parentRoute: typeof AdminAuthenticatedPostsRoute
+      parentRoute: typeof AdminAuthenticatedRoute
     }
     '/admin/_authenticated/posts/$id/edit': {
       id: '/admin/_authenticated/posts/$id/edit'
-      path: '/$id/edit'
+      path: '/posts/$id/edit'
       fullPath: '/admin/posts/$id/edit'
       preLoaderRoute: typeof AdminAuthenticatedPostsIdEditRouteImport
-      parentRoute: typeof AdminAuthenticatedPostsRoute
+      parentRoute: typeof AdminAuthenticatedRoute
     }
     '/admin/_authenticated/pages/$id/edit': {
       id: '/admin/_authenticated/pages/$id/edit'
-      path: '/$id/edit'
+      path: '/pages/$id/edit'
       fullPath: '/admin/pages/$id/edit'
       preLoaderRoute: typeof AdminAuthenticatedPagesIdEditRouteImport
-      parentRoute: typeof AdminAuthenticatedPagesRoute
+      parentRoute: typeof AdminAuthenticatedRoute
     }
   }
 }
-
-interface AdminAuthenticatedPagesRouteChildren {
-  AdminAuthenticatedPagesIdEditRoute: typeof AdminAuthenticatedPagesIdEditRoute
-}
-
-const AdminAuthenticatedPagesRouteChildren: AdminAuthenticatedPagesRouteChildren =
-  {
-    AdminAuthenticatedPagesIdEditRoute: AdminAuthenticatedPagesIdEditRoute,
-  }
-
-const AdminAuthenticatedPagesRouteWithChildren =
-  AdminAuthenticatedPagesRoute._addFileChildren(
-    AdminAuthenticatedPagesRouteChildren,
-  )
-
-interface AdminAuthenticatedPostsRouteChildren {
-  AdminAuthenticatedPostsNewRoute: typeof AdminAuthenticatedPostsNewRoute
-  AdminAuthenticatedPostsIdEditRoute: typeof AdminAuthenticatedPostsIdEditRoute
-}
-
-const AdminAuthenticatedPostsRouteChildren: AdminAuthenticatedPostsRouteChildren =
-  {
-    AdminAuthenticatedPostsNewRoute: AdminAuthenticatedPostsNewRoute,
-    AdminAuthenticatedPostsIdEditRoute: AdminAuthenticatedPostsIdEditRoute,
-  }
-
-const AdminAuthenticatedPostsRouteWithChildren =
-  AdminAuthenticatedPostsRoute._addFileChildren(
-    AdminAuthenticatedPostsRouteChildren,
-  )
 
 interface AdminAuthenticatedRouteChildren {
   AdminAuthenticatedAnalyticsRoute: typeof AdminAuthenticatedAnalyticsRoute
@@ -724,8 +696,6 @@ interface AdminAuthenticatedRouteChildren {
   AdminAuthenticatedMediaRoute: typeof AdminAuthenticatedMediaRoute
   AdminAuthenticatedNewsletterRoute: typeof AdminAuthenticatedNewsletterRoute
   AdminAuthenticatedNotificationsRoute: typeof AdminAuthenticatedNotificationsRoute
-  AdminAuthenticatedPagesRoute: typeof AdminAuthenticatedPagesRouteWithChildren
-  AdminAuthenticatedPostsRoute: typeof AdminAuthenticatedPostsRouteWithChildren
   AdminAuthenticatedPwaRoute: typeof AdminAuthenticatedPwaRoute
   AdminAuthenticatedSeoRoute: typeof AdminAuthenticatedSeoRoute
   AdminAuthenticatedSettingsRoute: typeof AdminAuthenticatedSettingsRoute
@@ -733,6 +703,11 @@ interface AdminAuthenticatedRouteChildren {
   AdminAuthenticatedToolsRoute: typeof AdminAuthenticatedToolsRoute
   AdminAuthenticatedUsersRoute: typeof AdminAuthenticatedUsersRoute
   AdminAuthenticatedIndexRoute: typeof AdminAuthenticatedIndexRoute
+  AdminAuthenticatedPostsNewRoute: typeof AdminAuthenticatedPostsNewRoute
+  AdminAuthenticatedPagesIndexRoute: typeof AdminAuthenticatedPagesIndexRoute
+  AdminAuthenticatedPostsIndexRoute: typeof AdminAuthenticatedPostsIndexRoute
+  AdminAuthenticatedPagesIdEditRoute: typeof AdminAuthenticatedPagesIdEditRoute
+  AdminAuthenticatedPostsIdEditRoute: typeof AdminAuthenticatedPostsIdEditRoute
 }
 
 const AdminAuthenticatedRouteChildren: AdminAuthenticatedRouteChildren = {
@@ -746,8 +721,6 @@ const AdminAuthenticatedRouteChildren: AdminAuthenticatedRouteChildren = {
   AdminAuthenticatedMediaRoute: AdminAuthenticatedMediaRoute,
   AdminAuthenticatedNewsletterRoute: AdminAuthenticatedNewsletterRoute,
   AdminAuthenticatedNotificationsRoute: AdminAuthenticatedNotificationsRoute,
-  AdminAuthenticatedPagesRoute: AdminAuthenticatedPagesRouteWithChildren,
-  AdminAuthenticatedPostsRoute: AdminAuthenticatedPostsRouteWithChildren,
   AdminAuthenticatedPwaRoute: AdminAuthenticatedPwaRoute,
   AdminAuthenticatedSeoRoute: AdminAuthenticatedSeoRoute,
   AdminAuthenticatedSettingsRoute: AdminAuthenticatedSettingsRoute,
@@ -755,6 +728,11 @@ const AdminAuthenticatedRouteChildren: AdminAuthenticatedRouteChildren = {
   AdminAuthenticatedToolsRoute: AdminAuthenticatedToolsRoute,
   AdminAuthenticatedUsersRoute: AdminAuthenticatedUsersRoute,
   AdminAuthenticatedIndexRoute: AdminAuthenticatedIndexRoute,
+  AdminAuthenticatedPostsNewRoute: AdminAuthenticatedPostsNewRoute,
+  AdminAuthenticatedPagesIndexRoute: AdminAuthenticatedPagesIndexRoute,
+  AdminAuthenticatedPostsIndexRoute: AdminAuthenticatedPostsIndexRoute,
+  AdminAuthenticatedPagesIdEditRoute: AdminAuthenticatedPagesIdEditRoute,
+  AdminAuthenticatedPostsIdEditRoute: AdminAuthenticatedPostsIdEditRoute,
 }
 
 const AdminAuthenticatedRouteWithChildren =
@@ -776,3 +754,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

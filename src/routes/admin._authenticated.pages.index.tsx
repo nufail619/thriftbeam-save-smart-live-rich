@@ -15,7 +15,7 @@ import { usePages, pagesApi, slugify } from "@/lib/adminStore";
 import { toast } from "sonner";
 import type { AdminPageTemplate } from "@/lib/mockAdminData";
 
-export const Route = createFileRoute("/admin/_authenticated/pages")({
+export const Route = createFileRoute("/admin/_authenticated/pages/")({
   component: PagesPage,
 });
 

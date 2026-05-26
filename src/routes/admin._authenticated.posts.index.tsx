@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const Route = createFileRoute("/admin/_authenticated/posts")({
+export const Route = createFileRoute("/admin/_authenticated/posts/")({
   component: PostsPage,
 });
 
