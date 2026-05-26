@@ -1,10 +1,10 @@
-// Mock admin auth — localStorage only. Wire to real backend later.
+// Admin auth — talks to real backend via /auth/login; stores token + user in localStorage.
+// Lockout/attempt counting stays client-side UX only.
+import { api, saveAuth, clearAuth } from "@/lib/api";
+
 const TOKEN_KEY = "tb_token";
 const USER_KEY = "tb_user";
 const ATTEMPTS_KEY = "tb_attempts";
-
-const ADMIN_EMAIL = "admin@thriftbeam.com";
-const ADMIN_PASSWORD = "admin123";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
@@ -13,23 +13,18 @@ export type AdminUser = {
   id: string;
   name: string;
   email: string;
-  role: "admin";
+  role: string;
+  avatar?: string;
 };
 
 const isBrowser = () => typeof window !== "undefined";
-
-function fakeJwt(payload: object): string {
-  const enc = (o: object) =>
-    btoa(JSON.stringify(o)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const header = enc({ alg: "HS256", typ: "JWT" });
-  const body = enc({ ...payload, iat: Date.now() });
-  const sig = enc({ s: Math.random().toString(36).slice(2) });
-  return `${header}.${body}.${sig}`;
-}
+const isValidToken = (t: unknown): t is string =>
+  typeof t === "string" && t !== "undefined" && t.length > 10;
 
 export function getToken(): string | null {
   if (!isBrowser()) return null;
-  return localStorage.getItem(TOKEN_KEY);
+  const t = localStorage.getItem(TOKEN_KEY);
+  return isValidToken(t) ? t : null;
 }
 
 export function getUser(): AdminUser | null {
@@ -92,34 +87,30 @@ export function clearAttempts() {
 
 export type LoginResult =
   | { ok: true; user: AdminUser }
-  | { ok: false; reason: "locked" | "invalid"; unlockAt?: number };
+  | { ok: false; reason: "locked" | "invalid"; unlockAt?: number; message?: string };
 
-export function login(email: string, password: string): LoginResult {
+export async function login(email: string, password: string): Promise<LoginResult> {
   const lock = getLockoutInfo();
   if (lock.locked) return { ok: false, reason: "locked", unlockAt: lock.unlockAt! };
 
-  if (email.trim().toLowerCase() !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+  try {
+    const data = await api.post<{ token: string; user: AdminUser }>("/auth/login", {
+      email: email.trim(),
+      password,
+    });
+    if (!data?.token || !isValidToken(data.token)) {
+      recordFailedAttempt();
+      return { ok: false, reason: "invalid", message: "Invalid response from server" };
+    }
+    saveAuth(data.token, data.user);
+    clearAttempts();
+    return { ok: true, user: data.user };
+  } catch (e) {
     recordFailedAttempt();
-    return { ok: false, reason: "invalid" };
+    return { ok: false, reason: "invalid", message: (e as Error)?.message };
   }
-
-  const user: AdminUser = {
-    id: "u_admin_1",
-    name: "Admin",
-    email: ADMIN_EMAIL,
-    role: "admin",
-  };
-  const token = fakeJwt({ sub: user.id, email: user.email, role: user.role });
-  if (isBrowser()) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-  }
-  clearAttempts();
-  return { ok: true, user };
 }
 
 export function logout() {
-  if (!isBrowser()) return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  clearAuth();
 }

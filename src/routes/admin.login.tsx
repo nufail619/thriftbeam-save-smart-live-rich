@@ -67,8 +67,8 @@ function LoginPage() {
     defaultValues: { email: "", password: "", remember: false },
   });
 
-  const onSubmit = (values: FormValues) => {
-    const result = login(values.email, values.password);
+  const onSubmit = async (values: FormValues) => {
+    const result = await login(values.email, values.password);
     if (result.ok) {
       toast.success("Welcome back");
       navigate({ to: search.redirect ?? "/admin" });
@@ -84,7 +84,11 @@ function LoginPage() {
     if (info.locked) {
       toast.error("Locked out for 15 minutes after 5 failed attempts.");
     } else {
-      toast.error(`Invalid credentials. ${info.remaining} attempt${info.remaining === 1 ? "" : "s"} left.`);
+      toast.error(
+        result.message
+          ? `${result.message}. ${info.remaining} attempt${info.remaining === 1 ? "" : "s"} left.`
+          : `Invalid credentials. ${info.remaining} attempt${info.remaining === 1 ? "" : "s"} left.`,
+      );
     }
   };
 

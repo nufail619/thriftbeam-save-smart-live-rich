@@ -1,58 +1,102 @@
-## What I'll do
+# Connect Frontend to Production PHP Backend
 
-### 1. Hide the "Edit with Lovable" badge
-Call `publish_settings.set_badge_visibility(hide_badge: true)`. This is the correct way — the badge is injected by the hosting platform on published deployments, not by code in the repo. There is no `gptengineer.js`, no `index.html`, no Lovable iframe in this project to delete (TanStack Start renders the shell from `src/routes/__root.tsx`). I verified: `rg -i lovable src/` returns nothing.
+API base: `https://thriftbeam.com/api`. Response envelope: `{ ok: true, data }` or `{ error }`. Token in `localStorage.tb_token`.
 
-### 2. Generate ThriftBeam favicon set
-Use imagegen (premium, transparent) to create a clean blue circle with white "T":
-- `public/favicon.svg` (master, vector-style render)
-- `public/favicon-32x32.png`, `favicon-16x16.png`
-- `public/apple-touch-icon.png` (180×180)
-- `public/favicon-192x192.png`, `public/favicon-512x512.png`
-- `public/favicon.ico` — built from the 32px PNG via ImageMagick (nix run nixpkgs#imagemagick)
+## Phase 1 — Foundation + Auth + Posts
 
-### 3. Generate OG image
-imagegen premium 1200×630: ThriftBeam wordmark + tagline "Save Smart. Live Rich." on blue gradient → `public/og-image.jpg`.
+### 1. `src/lib/api.ts` (new) — typed fetch client
 
-### 4. Update `src/routes/__root.tsx`
-- Title: "ThriftBeam — Save Smart, Live Rich"
-- Description: "Your trusted guide to budgeting, saving, and building wealth — one smart decision at a time."
-- `theme-color`: `#2563EB`
-- Full favicon `<link>` set (icon, apple-touch-icon, manifest, mask-icon)
-- OG: title, description, image (absolute `https://thriftbeam.com/og-image.jpg`), url `https://thriftbeam.com`, type, site_name
-- Twitter: summary_large_image + matching title/description/image
-- `<html lang="en">` is already set in `RootShell` — verified.
+- `API_BASE = "https://thriftbeam.com/api"`
+- `apiFetch<T>(path, { method, body, headers, formData })`:
+  - Prepends base URL
+  - Reads `tb_token` from localStorage; attaches `Authorization: Bearer <token>` only when token is a non-empty string of length > 10 and not the literal `"undefined"`
+  - JSON-encodes object bodies and sets `Content-Type: application/json`; if `formData` passed, sends as-is with no content-type header (browser sets boundary)
+  - Parses JSON response; if `res.status === 401`: clear `tb_token` + `tb_user`, `window.location.assign("/admin/login")`, throw `ApiError`
+  - If `!res.ok` or `body.ok === false` / `body.error`: throw `ApiError(body.error || res.statusText, res.status)`
+  - Returns `body.data as T` (auto-unwrap)
+- Helpers: `api.get`, `api.post`, `api.put`, `api.delete`, `api.upload(path, file, extraFields?)`
+- `saveAuth(token, user)`: validates `typeof token === "string" && token.length > 10` before writing; throws otherwise
 
-### 5. Create `public/site.webmanifest`
-Name "ThriftBeam", short_name "ThriftBeam", theme/background `#2563EB`/`#FFFFFF`, 192 + 512 icons, `display: standalone`.
+### 2. Admin login (`src/routes/admin.login.tsx` + `src/lib/adminAuth.ts`)
 
-### 6. Create `public/robots.txt`
-```
-User-agent: *
-Allow: /
+- Replace mock `login()` body with `await api.post("/auth/login", { email, password })` → expect `{ token, user }`
+- On success: `saveAuth(token, user)`, toast, navigate to `search.redirect ?? "/admin"`
+- On failure: preserve existing lockout / attempt-counting UX (lockout stays client-side; it's UX-only)
+- Keep `getToken`, `getUser`, `logout`, `isAuthenticated` working against localStorage
 
-Sitemap: https://thriftbeam.com/sitemap.xml
-```
+### 3. TanStack Query wiring
 
-### 7. Sitemap
-I'll check whether `src/routes/sitemap[.]xml.ts` already exists. If yes, ensure `BASE_URL = "https://thriftbeam.com"`. If no, create the server route per the sitemap-robots convention with all public routes (`/`, `/about`, `/contact`, `/blog`, `/tools`, `/privacy`, `/disclaimer`, plus blog posts + tool slugs from `mockData`).
+- Confirm `QueryClient` is provided in `__root.tsx` (already in template per integration card). If missing, add `<QueryClientProvider>` wrap in root component only.
+- No router-context changes needed; admin pages use `useQuery`/`useMutation` directly.
 
-### 8. Verify
-- `rg -i "lovable|gptengineer" src/ public/ index.html 2>/dev/null` → expect no matches in source (vite.config.ts excluded — see below)
-- Hit preview, view source, confirm meta tags + favicon links render
-- Confirm badge gone on published site
+### 4. Admin dashboard (`admin._authenticated.index.tsx`)
+
+- `useQuery({ queryKey: ["admin","dashboard"], queryFn: () => api.get("/dashboard") })`
+- Render skeletons (reuse existing StatCard layout with shimmer) while `isLoading`
+- On error: toast + inline error state; keep layout intact
+
+### 5. Posts CRUD
+
+- `src/lib/api/posts.ts`:
+  - `listAdminPosts(params)` → `GET /posts/admin`
+  - `getPost(id)` → `GET /posts/:id` (or use existing edit endpoint backend exposes)
+  - `createPost(payload)` → `POST /posts`
+  - `updatePost(id, payload)` → `PUT /posts/:id`
+  - `deletePost(id)` → `DELETE /posts/:id`
+- `admin._authenticated.posts.index.tsx`: `useQuery(["posts","admin", filters])`; skeleton rows; delete via `useMutation` + `invalidateQueries`
+- `admin._authenticated.posts.new.tsx`: `useMutation(createPost)` → on success navigate to edit page + toast
+- `admin._authenticated.posts.$id.edit.tsx`: `useQuery(["posts", id])` for initial data; `useMutation(updatePost)` for Save Draft / Publish; invalidate list on success
+- Remove `postsApi` direct calls from these three routes; keep `adminStore` file alive only for screens not yet migrated in Phase 1
+
+### 6. Verification gate (stop before Phase 2)
+
+- Login with real creds → dashboard loads real numbers
+- Posts list renders from API; create + edit + delete round-trip works
+- 401 from any call redirects to `/admin/login` and clears storage
+- No console errors
 
 ---
 
-## What I will NOT do, and why
+## Phase 2 — Remaining admin + public
 
-These items in your request can't be done without breaking the project — I'll flag them rather than silently skip:
+Same pattern (`src/lib/api/<resource>.ts` + `useQuery`/`useMutation` in route file). Skeletons for loading, toasts for errors, `invalidateQueries` on mutations.
 
-- **`vite.config.ts` `@lovable.dev/vite-tanstack-config` import** stays. It's not a watermark — it's the entire Vite build configuration (TanStack Start plugin, Cloudflare adapter, Tailwind, path aliases, SSR setup). Removing it bricks the build. It ships zero runtime code or branding to end users.
-- **No `lovable-tagger` or `lovable-*` dependency** exists in `package.json` — already clean.
-- **No `index.html`, `gptengineer.js`, Lovable iframe, or badge code** exists in the repo. The badge is platform-injected on `*.lovable.app` URLs and disabled via the publish setting (step 1). On your own custom domain (`thriftbeam.com`) it won't appear at all.
-- **`.lovable/` folder** (plan.md, project.json) is internal tooling state, not shipped to users. Leaving it.
+| Area | Endpoints |
+|---|---|
+| Categories | `GET/POST /categories`, `PUT/DELETE /categories/:id` |
+| Users | `GET/POST /users`, `PUT/DELETE /users/:id` |
+| Media | `GET /media`, `POST /media` (FormData, `file` field, real progress via `XMLHttpRequest` wrapper in `api.upload`), `PUT/DELETE /media/:id` |
+| Comments | `GET /comments`, `PUT /comments/:id` (status), `DELETE /comments/:id` |
+| Newsletter (admin) | `GET /newsletter`, `PUT/DELETE /newsletter/:id` |
+| Pages | `GET/POST /pages`, `PUT/DELETE /pages/:id` |
+| Settings | `GET /settings`, `PUT /settings/:key` |
+| Public home (`index.tsx`) | `GET /posts?per_page=6` |
+| Public blog list (`blog.index.tsx`) | `GET /posts` with category/tag/search/page filters via `loaderDeps` + Query |
+| Public blog post (`blog.$slug.tsx`) | `GET /posts/slug/:slug` |
+| Newsletter signup component | `POST /newsletter` |
+| Contact form (`contact.tsx`) | `POST /contact` |
+| Comment submit (on blog post) | `POST /comments` |
 
-Once you point `thriftbeam.com` at the deployment, none of the remaining Lovable infrastructure is visible to visitors.
+### Media upload specifics
 
-Proceed?
+- `api.upload(path, file, fields?)`: uses `XMLHttpRequest` so we can emit progress events; resolves with unwrapped `data` (filename + URL); rejects with `ApiError` on non-2xx or `{ok:false}`
+- `MediaPickerModal` + media admin page show real progress bar; on success swap in returned URL
+
+### Mock data fallback
+
+- Keep `src/lib/mockData.ts` / `mockAdminData.ts` files; use them only for skeleton dimensions/placeholders during `isLoading`, never as random content
+- Remove `adminStore`'s in-memory subscribe pattern once all consumers migrate; delete file at end of Phase 2
+
+## Technical notes
+
+- All API calls are client-side from components via TanStack Query — no server functions, no SSR fetches (admin is auth-gated; public pages can stay CSR for now to avoid CORS/SSR origin concerns until backend confirms CORS for the lovable.app preview origin)
+- `ApiError extends Error { status: number }` so callers can branch on 401/403/422
+- Token validation rule (`length > 10`, not `"undefined"`) enforced in both `saveAuth` and `apiFetch` read path
+- No UI/layout/design changes — only swap data sources inside hooks/route loaders
+- All toasts via existing `sonner` instance; all skeletons via existing admin skeleton components
+
+## Out of scope
+
+- CORS configuration on the PHP backend (assumed already permitting the preview + custom domain)
+- Refresh-token flow (not specified; 401 = logout)
+- Optimistic updates (can add later per screen)

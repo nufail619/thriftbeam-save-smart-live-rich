@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -10,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { FileText, Eye, Users, MessageSquare, ExternalLink } from "lucide-react";
+import { FileText, Eye, Users, MessageSquare, ExternalLink, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import StatCard from "@/components/admin/StatCard";
 import AdminBadge from "@/components/admin/Badge";
@@ -24,13 +25,29 @@ import {
   type AdminPost,
   type PendingComment,
 } from "@/lib/mockAdminData";
+import { dashboardApi, asStat, type DashboardData } from "@/lib/api/dashboard";
 
 export const Route = createFileRoute("/admin/_authenticated/")({
   component: DashboardPage,
 });
 
 function DashboardPage() {
-  const stats = mockDashboardStats;
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: () => dashboardApi.get(),
+  });
+
+  const d: DashboardData = data ?? {};
+  const stats = {
+    totalPosts: asStat(d.totalPosts ?? mockDashboardStats.totalPosts.value),
+    totalViews: asStat(d.totalViews ?? mockDashboardStats.totalViews.value),
+    subscribers: asStat(d.subscribers ?? mockDashboardStats.subscribers.value),
+    commentsPending: asStat(d.commentsPending ?? mockDashboardStats.commentsPending.value),
+  };
+  const visitors = d.visitors30d?.length ? d.visitors30d : mockVisitors30d;
+  const categories = d.categoryViews?.length ? d.categoryViews : mockCategoryViews;
+  const recent = (d.recentPosts as AdminPost[] | undefined) ?? mockRecentPosts;
+  const pending = (d.pendingComments as PendingComment[] | undefined) ?? mockPendingComments;
 
   const columns: Column<AdminPost>[] = [
     {
@@ -55,8 +72,8 @@ function DashboardPage() {
       header: "",
       render: () => (
         <div className="flex justify-end gap-2">
-          <button onClick={() => toast("Editor coming in Phase B")} className="text-xs font-semibold text-primary hover:underline">Edit</button>
-          <button onClick={() => toast("View coming in Phase B")} className="text-xs font-semibold text-muted-foreground hover:underline">View</button>
+          <button onClick={() => toast("Open the Posts page to edit")} className="text-xs font-semibold text-primary hover:underline">Edit</button>
+          <button onClick={() => toast("Preview coming soon")} className="text-xs font-semibold text-muted-foreground hover:underline">View</button>
         </div>
       ),
       className: "text-right",
@@ -65,6 +82,12 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load dashboard: {(error as Error)?.message}. Showing fallback.</span>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Posts" value={stats.totalPosts.value} delta={stats.totalPosts.delta} icon={FileText} />
         <StatCard label="Total Views" value={stats.totalViews.value} delta={stats.totalViews.delta} icon={Eye} />
@@ -75,7 +98,7 @@ function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Visitors — last 30 days">
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={mockVisitors30d} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <LineChart data={visitors} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="date" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
               <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
@@ -87,7 +110,7 @@ function DashboardPage() {
 
         <ChartCard title="Top categories by views">
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={mockCategoryViews} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <BarChart data={categories} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="category" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={50} />
               <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
@@ -104,7 +127,7 @@ function DashboardPage() {
             <h2 className="text-base font-semibold">Recent posts</h2>
             <a href="/admin/posts" className="text-xs font-semibold text-primary hover:underline">View all →</a>
           </div>
-          <DataTable rows={mockRecentPosts} columns={columns} rowKey={(r) => r.id} pageSize={5} />
+          <DataTable rows={recent} columns={columns} rowKey={(r) => r.id} pageSize={5} />
         </div>
 
         <div className="space-y-3">
@@ -113,7 +136,7 @@ function DashboardPage() {
             <a href="/admin/comments" className="text-xs font-semibold text-primary hover:underline">View all →</a>
           </div>
           <ul className="space-y-3">
-            {mockPendingComments.map((c) => (
+            {pending.map((c) => (
               <PendingItem key={c.id} c={c} />
             ))}
           </ul>
