@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FileText,
   CheckCircle2,
@@ -10,12 +11,13 @@ import {
   Eye,
   Copy,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import StatCard from "@/components/admin/StatCard";
 import AdminBadge from "@/components/admin/Badge";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { usePosts, postsApi } from "@/lib/adminStore";
+import { postsApi, normalizePosts } from "@/lib/api/posts";
 import { CATEGORIES, AUTHORS, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -39,13 +41,34 @@ const TABS: { key: "all" | AdminPostStatus; label: string }[] = [
 ];
 
 function PostsPage() {
-  const posts = usePosts();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["posts", "admin"],
+    queryFn: () => postsApi.listAdmin(),
+    select: (r) => normalizePosts(r),
+  });
+  const posts: AdminPost[] = data ?? [];
+
   const [tab, setTab] = useState<"all" | AdminPostStatus>("all");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [author, setAuthor] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<{ ids: string[]; mode: "trash" | "delete" } | null>(null);
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["posts"] });
+
+  const setStatusMut = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AdminPostStatus }) =>
+      postsApi.setStatus(id, status),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const removeMut = useMutation({
+    mutationFn: (id: string) => postsApi.remove(id),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
 
   const counts = useMemo(() => ({
     total: posts.length,
@@ -82,6 +105,13 @@ function PostsPage() {
 
   const selectedIds = Array.from(selected).filter((id) => filtered.some((p) => p.id === id));
 
+  const bulkSetStatus = async (ids: string[], status: AdminPostStatus) => {
+    await Promise.all(ids.map((id) => setStatusMut.mutateAsync({ id, status })));
+  };
+  const bulkRemove = async (ids: string[]) => {
+    await Promise.all(ids.map((id) => removeMut.mutateAsync(id)));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -96,6 +126,13 @@ function PostsPage() {
           <Plus className="h-4 w-4" /> New post
         </Link>
       </div>
+
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load posts: {(error as Error).message}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Total posts" value={counts.total} icon={FileText} />
@@ -151,15 +188,27 @@ function PostsPage() {
           <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-4 py-2 text-sm">
             <span className="font-medium">{selectedIds.length} selected</span>
             <div className="ml-auto flex gap-2">
-              <button onClick={() => { postsApi.bulkSetStatus(selectedIds, "published"); toast.success("Published"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Publish</button>
-              <button onClick={() => { postsApi.bulkSetStatus(selectedIds, "draft"); toast.success("Moved to draft"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Draft</button>
+              <button onClick={async () => { await bulkSetStatus(selectedIds, "published"); toast.success("Published"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Publish</button>
+              <button onClick={async () => { await bulkSetStatus(selectedIds, "draft"); toast.success("Moved to draft"); setSelected(new Set()); }} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Draft</button>
               <button onClick={() => setConfirm({ ids: selectedIds, mode: "trash" })} className="h-8 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Trash</button>
               <button onClick={() => setConfirm({ ids: selectedIds, mode: "delete" })} className="h-8 rounded-md bg-destructive px-3 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90">Delete</button>
             </div>
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-10 w-10 animate-pulse rounded-md bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                  <div className="h-2.5 w-1/4 animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-6">
             <EmptyState icon={FileText} title="No posts here" description="Try a different filter or create a new post." />
           </div>
@@ -189,6 +238,22 @@ function PostsPage() {
                     onToggle={() => toggleOne(p.id)}
                     onTrash={() => setConfirm({ ids: [p.id], mode: "trash" })}
                     onDelete={() => setConfirm({ ids: [p.id], mode: "delete" })}
+                    onDuplicate={async () => {
+                      try {
+                        await postsApi.create({
+                          ...p,
+                          id: undefined as unknown as string,
+                          title: `${p.title} (copy)`,
+                          slug: `${p.slug}-copy`,
+                          status: "draft",
+                          views: 0,
+                        });
+                        toast.success("Duplicated");
+                        invalidate();
+                      } catch (e) {
+                        toast.error((e as Error).message);
+                      }
+                    }}
                   />
                 ))}
               </tbody>
@@ -208,14 +273,18 @@ function PostsPage() {
         }
         confirmLabel={confirm?.mode === "delete" ? "Delete" : "Move to trash"}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!confirm) return;
-          if (confirm.mode === "delete") {
-            postsApi.bulkRemove(confirm.ids);
-            toast.success("Deleted");
-          } else {
-            postsApi.bulkSetStatus(confirm.ids, "trash");
-            toast.success("Moved to trash");
+          try {
+            if (confirm.mode === "delete") {
+              await bulkRemove(confirm.ids);
+              toast.success("Deleted");
+            } else {
+              await bulkSetStatus(confirm.ids, "trash");
+              toast.success("Moved to trash");
+            }
+          } catch (e) {
+            toast.error((e as Error).message);
           }
           setSelected(new Set());
           setConfirm(null);
@@ -231,12 +300,14 @@ function PostRow({
   onToggle,
   onTrash,
   onDelete,
+  onDuplicate,
 }: {
   post: AdminPost;
   checked: boolean;
   onToggle: () => void;
   onTrash: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   return (
     <tr className="border-b border-border last:border-0 hover:bg-muted/30">
@@ -261,7 +332,7 @@ function PostRow({
       <td className="px-2 py-3 text-muted-foreground">{post.author}</td>
       <td className="px-2 py-3 text-muted-foreground">{post.category}</td>
       <td className="px-2 py-3"><AdminBadge variant={post.status}>{post.status}</AdminBadge></td>
-      <td className="px-2 py-3 text-right tabular-nums text-muted-foreground">{post.views.toLocaleString()}</td>
+      <td className="px-2 py-3 text-right tabular-nums text-muted-foreground">{(post.views ?? 0).toLocaleString()}</td>
       <td className="px-2 py-3 text-muted-foreground">{post.date}</td>
       <td className="px-2 py-3">
         <DropdownMenu>
@@ -274,10 +345,10 @@ function PostRow({
                 <PencilIcon className="mr-2 h-3.5 w-3.5" /> Edit
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast("Preview is mock")}>
+            <DropdownMenuItem onClick={() => window.open(`/blog/${post.slug}`, "_blank")}>
               <Eye className="mr-2 h-3.5 w-3.5" /> View
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { postsApi.duplicate(post.id); toast.success("Duplicated"); }}>
+            <DropdownMenuItem onClick={onDuplicate}>
               <Copy className="mr-2 h-3.5 w-3.5" /> Duplicate
             </DropdownMenuItem>
             {post.status === "trash" ? (
