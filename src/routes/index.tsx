@@ -105,7 +105,7 @@ function Home() {
       <section className="section-pad bg-surface">
         <div className="container-page">
           <h2 className="text-3xl md:text-4xl font-bold">Latest articles</h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {latest.map((p) => <PostCard key={p.slug} post={p} />)}
           </div>
           <div className="mt-10 text-center">
