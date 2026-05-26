@@ -188,12 +188,8 @@ function LoginPage() {
             >
               Sign in
             </button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Demo credentials: <span className="font-mono">admin@thriftbeam.com</span> /{" "}
-              <span className="font-mono">admin123</span>
-            </p>
           </form>
+
         </div>
       </div>
     </div>
