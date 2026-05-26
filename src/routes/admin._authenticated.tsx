@@ -1,6 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Outlet, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
-import { Outlet } from "@tanstack/react-router";
+import { isAuthenticated } from "@/lib/adminAuth";
 
 export const Route = createFileRoute("/admin/_authenticated")({
   beforeLoad: ({ location }) => {
@@ -17,6 +18,23 @@ export const Route = createFileRoute("/admin/_authenticated")({
 });
 
 function AdminAuthLayout() {
+  const navigate = useNavigate();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate({
+        to: "/admin/login",
+        search: { redirect: window.location.pathname + window.location.search },
+        replace: true,
+      });
+      return;
+    }
+    setReady(true);
+  }, [navigate]);
+
+  if (!ready) return null;
+
   return (
     <AdminShell>
       <Outlet />
