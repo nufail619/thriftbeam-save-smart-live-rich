@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { cloneElement, useId, type ReactElement } from "react";
+import { cloneElement, useId, useState, type ReactElement } from "react";
 import { toast } from "sonner";
-import { Mail, Clock, Twitter, Facebook, Linkedin, ChevronDown } from "lucide-react";
+import { Mail, Clock, Twitter, Facebook, Linkedin, ChevronDown, Loader2 } from "lucide-react";
+import { contactApi } from "@/lib/api/contact";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -32,13 +33,31 @@ const SOCIALS = [
 ];
 
 const INPUT_CLASS =
-  "w-full h-12 px-4 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/30";
+  "w-full h-12 px-4 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60";
 
 function ContactPage() {
-  function submit(e: React.FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    toast.success("Message sent — we'll be in touch soon.");
-    (e.target as HTMLFormElement).reset();
+    const form = e.target as HTMLFormElement;
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get("name") ?? ""),
+      email: String(fd.get("email") ?? ""),
+      subject: String(fd.get("subject") ?? ""),
+      message: String(fd.get("message") ?? ""),
+    };
+    setSubmitting(true);
+    try {
+      await contactApi.send(payload);
+      toast.success("Message sent — we'll be in touch soon.");
+      form.reset();
+    } catch (err) {
+      toast.error((err as Error).message || "Could not send message");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -53,27 +72,30 @@ function ContactPage() {
         <form onSubmit={submit} className="rounded-2xl bg-card border border-border p-6 md:p-8 space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <FormField label="Your name">
-              <input required autoComplete="name" placeholder="Jane Smith" className={INPUT_CLASS} />
+              <input name="name" required autoComplete="name" placeholder="Jane Smith" disabled={submitting} className={INPUT_CLASS} />
             </FormField>
             <FormField label="Email">
-              <input required type="email" autoComplete="email" placeholder="you@example.com" className={INPUT_CLASS} />
+              <input name="email" required type="email" autoComplete="email" placeholder="you@example.com" disabled={submitting} className={INPUT_CLASS} />
             </FormField>
           </div>
           <FormField label="Subject">
-            <input required placeholder="A quick question about…" className={INPUT_CLASS} />
+            <input name="subject" required placeholder="A quick question about…" disabled={submitting} className={INPUT_CLASS} />
           </FormField>
           <FormField label="Message">
             <textarea
+              name="message"
               required
               rows={6}
               placeholder="Tell us what's on your mind…"
+              disabled={submitting}
               className={`${INPUT_CLASS} h-auto py-3 resize-y leading-relaxed`}
             />
           </FormField>
-          <button className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-            Send message
+          <button disabled={submitting} className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60">
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Send message
           </button>
         </form>
+
 
         <aside className="space-y-4">
           <div className="rounded-2xl bg-surface border border-border p-6">

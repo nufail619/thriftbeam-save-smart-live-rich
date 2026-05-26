@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import { categories, posts, getCategory } from "@/lib/mockData";
+import { categories, posts as fallbackPosts } from "@/lib/mockData";
+import { publicPostsApi } from "@/lib/api/publicPosts";
 import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
 
@@ -31,16 +34,24 @@ function BlogPage() {
   const { category, page = 1 } = Route.useSearch();
   const [activeCat, setActiveCat] = useState<string | undefined>(category);
 
-  const filtered = useMemo(
-    () => (activeCat ? posts.filter((p) => p.category === activeCat) : posts),
-    [activeCat]
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const current = Math.min(page, totalPages);
-  const paged = filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["public", "posts", { category: activeCat, page, per_page: PER_PAGE }],
+    queryFn: () =>
+      publicPostsApi.list({
+        category: activeCat,
+        page,
+        per_page: PER_PAGE,
+      }),
+  });
 
-  const popular = posts.slice(0, 5);
-  const allTags = Array.from(new Set(posts.flatMap((p) => p.tags))).slice(0, 14);
+  const paged = data?.posts ?? (isError
+    ? (activeCat ? fallbackPosts.filter((p) => p.category === activeCat) : fallbackPosts).slice((page - 1) * PER_PAGE, page * PER_PAGE)
+    : []);
+  const totalPages = Math.max(1, data?.pages ?? 1);
+  const current = Math.min(page, totalPages);
+
+  const popular = (data?.posts && data.posts.length ? data.posts : fallbackPosts).slice(0, 5);
+  const allTags = Array.from(new Set((data?.posts && data.posts.length ? data.posts : fallbackPosts).flatMap((p) => p.tags))).slice(0, 14);
 
   return (
     <div className="container-page py-10 md:py-16">
@@ -59,10 +70,14 @@ function BlogPage() {
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-10">
         <div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {paged.map((p) => <PostCard key={p.slug} post={p} />)}
-          </div>
-          {paged.length === 0 && (
+          {isLoading && !data ? (
+            <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading posts…</div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {paged.map((p) => <PostCard key={p.slug} post={p} />)}
+            </div>
+          )}
+          {!isLoading && paged.length === 0 && (
             <p className="text-center text-muted-foreground py-16">No posts in this category yet.</p>
           )}
 
@@ -81,11 +96,9 @@ function BlogPage() {
                 </Link>
               ))}
               {current < totalPages && (
-                <Link
-                  to="/blog"
-                  search={{ category: activeCat, page: current + 1 }}
-                  className="h-10 px-4 rounded-lg border border-border text-sm font-semibold hover:bg-muted"
-                >Next →</Link>
+                <Link to="/blog" search={{ category: activeCat, page: current + 1 }} className="h-10 px-4 rounded-lg border border-border text-sm font-semibold hover:bg-muted">
+                  Next →
+                </Link>
               )}
             </nav>
           )}

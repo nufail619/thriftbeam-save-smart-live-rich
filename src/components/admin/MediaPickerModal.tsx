@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Search, FileImage, FileText, Upload } from "lucide-react";
+import { Search, FileImage, FileText, Upload, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useMedia, mediaApi, formatBytes } from "@/lib/adminStore";
+import { mediaApi } from "@/lib/api/media";
+import { formatBytes } from "@/lib/adminStore";
 import type { MediaItem } from "@/lib/mockAdminData";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,9 +17,15 @@ export default function MediaPickerModal({
   onOpenChange: (v: boolean) => void;
   onSelect: (item: MediaItem) => void;
 }) {
-  const media = useMedia();
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["media"],
+    queryFn: () => mediaApi.list(),
+    enabled: open,
+  });
+  const media: MediaItem[] = data ?? [];
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -25,6 +33,20 @@ export default function MediaPickerModal({
   }, [media, query]);
 
   const selectedItem = filtered.find((m) => m.id === selected) ?? null;
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    try {
+      const it = await mediaApi.upload(file);
+      toast.success("Uploaded");
+      await refetch();
+      if (it?.id) setSelected(it.id);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,21 +62,23 @@ export default function MediaPickerModal({
             placeholder="Search media…"
             className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-          <button
-            type="button"
-            onClick={() => {
-              const [it] = mediaApi.uploadMock(1);
-              toast.success("Uploaded 1 file (mock)");
-              if (it) setSelected(it.id);
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            <Upload className="h-3.5 w-3.5" /> Upload
-          </button>
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Upload
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = ""; }}
+            />
+          </label>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_240px]">
           <div className="grid max-h-[420px] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4 md:grid-cols-5">
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="col-span-full py-10 text-center text-sm text-muted-foreground">
+                <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" /> Loading…
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="col-span-full py-10 text-center text-sm text-muted-foreground">
                 <FileImage className="mx-auto mb-2 h-8 w-8" />
                 No images found.
@@ -85,7 +109,7 @@ export default function MediaPickerModal({
                 <img src={selectedItem.url} alt={selectedItem.alt} className="aspect-square w-full rounded-md object-cover" />
                 <p className="mt-2 truncate text-xs font-medium">{selectedItem.filename}</p>
                 <p className="text-xs text-muted-foreground">
-                  {selectedItem.width}×{selectedItem.height} · {formatBytes(selectedItem.size)}
+                  {selectedItem.width ? `${selectedItem.width}×${selectedItem.height} · ` : ""}{formatBytes(selectedItem.size)}
                 </p>
                 <button
                   type="button"

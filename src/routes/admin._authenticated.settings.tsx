@@ -1,19 +1,67 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { useSettings, usePages, settingsApi } from "@/lib/adminStore";
+import { settingsApi, type SettingsMap } from "@/lib/api/settings";
 
 export const Route = createFileRoute("/admin/_authenticated/settings")({
   component: SettingsPage,
 });
 
-const TABS = ["General", "Reading", "Writing", "Discussion", "Permalinks"] as const;
+const TABS = ["General", "Reading", "Discussion", "Permalinks"] as const;
 type Tab = (typeof TABS)[number];
+
+const FIELDS: Record<Tab, { key: string; label: string; type?: "text" | "number" | "checkbox" | "textarea" }[]> = {
+  General: [
+    { key: "site_title", label: "Site title" },
+    { key: "tagline", label: "Tagline" },
+    { key: "admin_email", label: "Admin email" },
+    { key: "timezone", label: "Timezone" },
+    { key: "date_format", label: "Date format" },
+    { key: "language", label: "Language" },
+  ],
+  Reading: [
+    { key: "posts_per_page", label: "Posts per page", type: "number" },
+    { key: "excerpt_length", label: "Excerpt length", type: "number" },
+  ],
+  Discussion: [
+    { key: "allow_comments", label: "Allow comments", type: "checkbox" },
+    { key: "require_approval", label: "Require approval", type: "checkbox" },
+    { key: "close_after_days", label: "Close after N days", type: "number" },
+    { key: "blacklist", label: "Blacklist (one word per line)", type: "textarea" },
+  ],
+  Permalinks: [
+    { key: "permalink_structure", label: "Structure" },
+  ],
+};
 
 function SettingsPage() {
   const [tab, setTab] = useState<Tab>("General");
-  const s = useSettings();
-  const pages = usePages();
+  const [draft, setDraft] = useState<SettingsMap>({});
+  const [saving, setSaving] = useState(false);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsApi.getAll(),
+  });
+
+  useEffect(() => { if (data) setDraft(data); }, [data]);
+
+  const set = (key: string, value: unknown) => setDraft((d) => ({ ...d, [key]: value }));
+
+  const saveTab = async () => {
+    setSaving(true);
+    try {
+      const keys = FIELDS[tab].map((f) => f.key);
+      await Promise.all(keys.map((k) => settingsApi.update(k, draft[k])));
+      toast.success(`${tab} saved`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -23,93 +71,54 @@ function SettingsPage() {
         ))}
       </div>
 
-      <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 space-y-3">
-        {tab === "General" && (
-          <>
-            <Field label="Site title"><input className="input" value={s.general.siteTitle} onChange={(e) => settingsApi.update("general", { siteTitle: e.target.value })} /></Field>
-            <Field label="Tagline"><input className="input" value={s.general.tagline} onChange={(e) => settingsApi.update("general", { tagline: e.target.value })} /></Field>
-            <Field label="Admin email"><input type="email" className="input" value={s.general.adminEmail} onChange={(e) => settingsApi.update("general", { adminEmail: e.target.value })} /></Field>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Timezone"><input className="input" value={s.general.timezone} onChange={(e) => settingsApi.update("general", { timezone: e.target.value })} /></Field>
-              <Field label="Date format"><input className="input" value={s.general.dateFormat} onChange={(e) => settingsApi.update("general", { dateFormat: e.target.value })} /></Field>
-              <Field label="Language"><input className="input" value={s.general.language} onChange={(e) => settingsApi.update("general", { language: e.target.value })} /></Field>
-            </div>
-          </>
-        )}
-
-        {tab === "Reading" && (
-          <>
-            <Field label="Posts per page"><input type="number" className="input" value={s.reading.postsPerPage} onChange={(e) => settingsApi.update("reading", { postsPerPage: Number(e.target.value) })} /></Field>
-            <Field label="Homepage displays">
-              <select className="input" value={s.reading.homepageDisplay} onChange={(e) => settingsApi.update("reading", { homepageDisplay: e.target.value as "latest" | "page" })}>
-                <option value="latest">Latest posts</option>
-                <option value="page">A static page</option>
-              </select>
-            </Field>
-            {s.reading.homepageDisplay === "page" && (
-              <Field label="Homepage page">
-                <select className="input" value={s.reading.homepagePageId} onChange={(e) => settingsApi.update("reading", { homepagePageId: e.target.value })}>
-                  {pages.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                </select>
-              </Field>
-            )}
-            <Field label="Excerpt length"><input type="number" className="input" value={s.reading.excerptLength} onChange={(e) => settingsApi.update("reading", { excerptLength: Number(e.target.value) })} /></Field>
-          </>
-        )}
-
-        {tab === "Writing" && (
-          <>
-            <Field label="Default category"><input className="input" value={s.writing.defaultCategory} onChange={(e) => settingsApi.update("writing", { defaultCategory: e.target.value })} /></Field>
-            <Field label="Default post format">
-              <select className="input" value={s.writing.defaultFormat} onChange={(e) => settingsApi.update("writing", { defaultFormat: e.target.value })}>
-                <option value="standard">Standard</option>
-                <option value="aside">Aside</option>
-                <option value="quote">Quote</option>
-                <option value="link">Link</option>
-              </select>
-            </Field>
-            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
-              <span className="text-sm font-medium">Enable Markdown</span>
-              <input type="checkbox" checked={s.writing.markdown} onChange={(e) => settingsApi.update("writing", { markdown: e.target.checked })} />
-            </label>
-          </>
-        )}
-
-        {tab === "Discussion" && (
-          <>
-            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
-              <span className="text-sm font-medium">Allow comments</span>
-              <input type="checkbox" checked={s.discussion.allowComments} onChange={(e) => settingsApi.update("discussion", { allowComments: e.target.checked })} />
-            </label>
-            <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
-              <span className="text-sm font-medium">Require approval</span>
-              <input type="checkbox" checked={s.discussion.requireApproval} onChange={(e) => settingsApi.update("discussion", { requireApproval: e.target.checked })} />
-            </label>
-            <Field label="Close after N days"><input type="number" className="input" value={s.discussion.closeAfterDays} onChange={(e) => settingsApi.update("discussion", { closeAfterDays: Number(e.target.value) })} /></Field>
-            <Field label="Blacklist (one word per line)"><textarea rows={4} className="input min-h-[100px] py-2 font-mono" value={s.discussion.blacklist} onChange={(e) => settingsApi.update("discussion", { blacklist: e.target.value })} /></Field>
-          </>
-        )}
-
-        {tab === "Permalinks" && (
-          <>
-            <Field label="Structure">
-              <select className="input" value={s.permalinks.structure} onChange={(e) => settingsApi.update("permalinks", { structure: e.target.value })}>
-                <option value="/blog/%postname%">/blog/%postname%</option>
-                <option value="/%year%/%postname%">/%year%/%postname%</option>
-                <option value="/%postname%">/%postname%</option>
-                <option value="/?p=%post_id%">/?p=%post_id%</option>
-              </select>
-            </Field>
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">Preview</p>
-              <code className="text-sm">{s.permalinks.structure.replace("%postname%", "how-i-saved-5000").replace("%year%", "2026").replace("%post_id%", "42")}</code>
-            </div>
-          </>
-        )}
-
-        <div className="flex justify-end pt-3 border-t border-border mt-3">
-          <button onClick={() => toast.success("Saved")} className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">Save {tab}</button>
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load settings: {(error as Error).message}</span>
         </div>
+      )}
+
+      <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 space-y-3">
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading settings…</div>
+        ) : (
+          <>
+            {FIELDS[tab].map((f) => {
+              const v = draft[f.key];
+              if (f.type === "checkbox") {
+                return (
+                  <label key={f.key} className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
+                    <span className="text-sm font-medium">{f.label}</span>
+                    <input type="checkbox" checked={Boolean(v)} onChange={(e) => set(f.key, e.target.checked)} />
+                  </label>
+                );
+              }
+              if (f.type === "textarea") {
+                return (
+                  <Field key={f.key} label={f.label}>
+                    <textarea rows={4} className="input min-h-[100px] py-2 font-mono" value={typeof v === "string" ? v : ""} onChange={(e) => set(f.key, e.target.value)} />
+                  </Field>
+                );
+              }
+              return (
+                <Field key={f.key} label={f.label}>
+                  <input
+                    type={f.type ?? "text"}
+                    className="input"
+                    value={v == null ? "" : String(v)}
+                    onChange={(e) => set(f.key, f.type === "number" ? Number(e.target.value) : e.target.value)}
+                  />
+                </Field>
+              );
+            })}
+            <div className="flex justify-end pt-3 border-t border-border mt-3">
+              <button disabled={saving} onClick={saveTab} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save {tab}
+              </button>
+            </div>
+          </>
+        )}
       </div>
       <style>{`.input{display:block;width:100%;height:40px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-card);padding:0 12px;font-size:14px}`}</style>
     </div>

@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Calculator, Users, Star } from "lucide-react";
-import { categories, posts, getAuthor } from "@/lib/mockData";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Calculator, Users, Star, Loader2 } from "lucide-react";
+import { categories, posts as fallbackPosts, getAuthor } from "@/lib/mockData";
+import { publicPostsApi } from "@/lib/api/publicPosts";
 import CategoryCard from "@/components/CategoryCard";
 import PostCard from "@/components/PostCard";
 import NewsletterSignup from "@/components/NewsletterSignup";
@@ -20,8 +22,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const featured = posts.filter((p) => p.featured).slice(0, 3);
-  const latest = posts.slice(0, 6);
+  const { data, isLoading } = useQuery({
+    queryKey: ["public", "latest", 6],
+    queryFn: () => publicPostsApi.latest(6),
+  });
+
+  const latest = data && data.length ? data : fallbackPosts.slice(0, 6);
+  const featured = latest.slice(0, 3);
   const featuredAuthors = featured.map((p) => getAuthor(p.authorSlug)).filter(Boolean);
 
   return (
@@ -42,16 +49,10 @@ function Home() {
               Your trusted guide to budgeting, saving, and building wealth — one smart decision at a time.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/blog"
-                className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              >
+              <Link to="/blog" className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
                 Read the Blog <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                to="/tools"
-                className="h-12 px-6 rounded-xl bg-background border-2 border-primary text-primary font-semibold inline-flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
-              >
+              <Link to="/tools" className="h-12 px-6 rounded-xl bg-background border-2 border-primary text-primary font-semibold inline-flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors">
                 <Calculator className="h-4 w-4" /> Try Calculators
               </Link>
             </div>
@@ -105,9 +106,13 @@ function Home() {
       <section className="section-pad bg-surface">
         <div className="container-page">
           <h2 className="text-3xl md:text-4xl font-bold">Latest articles</h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {latest.map((p) => <PostCard key={p.slug} post={p} />)}
-          </div>
+          {isLoading && !data ? (
+            <div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading latest posts…</div>
+          ) : (
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {latest.map((p) => <PostCard key={p.slug} post={p} />)}
+            </div>
+          )}
           <div className="mt-10 text-center">
             <Link to="/blog" className="inline-flex items-center gap-2 h-12 px-6 rounded-xl bg-background border border-border font-semibold hover:border-primary hover:text-primary transition-colors">
               Browse all articles <ArrowRight className="h-4 w-4" />

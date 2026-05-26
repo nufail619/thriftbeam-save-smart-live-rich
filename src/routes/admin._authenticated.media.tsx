@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Upload,
   Grid3x3,
@@ -9,13 +10,15 @@ import {
   FileText,
   Copy,
   Trash2,
-  X,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { useMedia, mediaApi, formatBytes } from "@/lib/adminStore";
-import type { MediaType } from "@/lib/mockAdminData";
+import { mediaApi } from "@/lib/api/media";
+import { formatBytes } from "@/lib/adminStore";
+import type { MediaItem, MediaType } from "@/lib/mockAdminData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -24,12 +27,32 @@ export const Route = createFileRoute("/admin/_authenticated/media")({
 });
 
 function MediaPage() {
-  const media = useMedia();
+  const qc = useQueryClient();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["media"],
+    queryFn: () => mediaApi.list(),
+  });
+  const media: MediaItem[] = data ?? [];
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["media"] });
+
+  const removeMut = useMutation({
+    mutationFn: (id: string) => mediaApi.remove(id),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const updateMut = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<MediaItem> }) => mediaApi.update(id, patch),
+    onSuccess: invalidate,
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const [view, setView] = useState<"grid" | "list">("grid");
   const [type, setType] = useState<"all" | MediaType>("all");
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -47,6 +70,23 @@ function MediaPage() {
     toast.success("URL copied");
   };
 
+  const onFiles = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const file = files[0];
+    setProgress(0);
+    try {
+      const it = await mediaApi.upload(file, (pct) => setProgress(pct));
+      toast.success("Uploaded");
+      invalidate();
+      if (it?.id) setActiveId(it.id);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setProgress(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -54,14 +94,33 @@ function MediaPage() {
           <h1 className="text-2xl font-bold tracking-tight">Media library</h1>
           <p className="text-sm text-muted-foreground">Images and documents available across the site.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => { const [it] = mediaApi.uploadMock(1); toast.success("Uploaded (mock)"); if (it) setActiveId(it.id); }}
-          className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          <Upload className="h-4 w-4" /> Upload
-        </button>
+        <div className="flex items-center gap-3">
+          {progress !== null && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+                <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="tabular-nums">{progress}%</span>
+            </div>
+          )}
+          <input ref={fileRef} type="file" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={progress !== null}
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            <Upload className="h-4 w-4" /> Upload
+          </button>
+        </div>
       </div>
+
+      {isError && (
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Failed to load media: {(error as Error).message}</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3">
         <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
@@ -88,7 +147,9 @@ function MediaPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading media…</div>
+      ) : filtered.length === 0 ? (
         <EmptyState icon={ImageIcon} title="No media found" description="Upload a file or adjust your filters." />
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -174,7 +235,11 @@ function MediaPage() {
                 <span className="font-medium">Alt text</span>
                 <input
                   defaultValue={active.alt}
-                  onBlur={(e) => { mediaApi.update(active.id, { alt: e.target.value }); toast.success("Alt text updated"); }}
+                  onBlur={(e) => {
+                    if (e.target.value !== active.alt) {
+                      updateMut.mutate({ id: active.id, patch: { alt: e.target.value } }, { onSuccess: () => toast.success("Alt text updated") });
+                    }
+                  }}
                   className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </label>
@@ -200,8 +265,10 @@ function MediaPage() {
         description="This file will be removed from the library."
         destructive
         confirmLabel="Delete"
-        onConfirm={() => {
-          if (confirmId) { mediaApi.remove(confirmId); toast.success("Deleted"); if (activeId === confirmId) setActiveId(null); }
+        onConfirm={async () => {
+          if (confirmId) {
+            try { await removeMut.mutateAsync(confirmId); toast.success("Deleted"); if (activeId === confirmId) setActiveId(null); } catch {/* toast handled */}
+          }
           setConfirmId(null);
         }}
       />
