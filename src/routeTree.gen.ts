@@ -18,6 +18,9 @@ import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminAuthenticatedRouteImport } from './routes/admin._authenticated'
+import { Route as AdminAuthenticatedIndexRouteImport } from './routes/admin._authenticated.index'
 
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
@@ -64,6 +67,21 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
   path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuthenticatedRoute = AdminAuthenticatedRouteImport.update({
+  id: '/admin/_authenticated',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuthenticatedIndexRoute = AdminAuthenticatedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminAuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -71,10 +89,13 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/disclaimer': typeof DisclaimerRoute
   '/privacy': typeof PrivacyRoute
+  '/admin': typeof AdminAuthenticatedRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog/': typeof BlogIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/admin/': typeof AdminAuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,10 +103,12 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/disclaimer': typeof DisclaimerRoute
   '/privacy': typeof PrivacyRoute
+  '/admin/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog': typeof BlogIndexRoute
   '/tools': typeof ToolsIndexRoute
+  '/admin': typeof AdminAuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,10 +117,13 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/disclaimer': typeof DisclaimerRoute
   '/privacy': typeof PrivacyRoute
+  '/admin/_authenticated': typeof AdminAuthenticatedRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
   '/blog/': typeof BlogIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/admin/_authenticated/': typeof AdminAuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,10 +133,13 @@ export interface FileRouteTypes {
     | '/contact'
     | '/disclaimer'
     | '/privacy'
+    | '/admin'
+    | '/admin/login'
     | '/blog/$slug'
     | '/tools/$slug'
     | '/blog/'
     | '/tools/'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,10 +147,12 @@ export interface FileRouteTypes {
     | '/contact'
     | '/disclaimer'
     | '/privacy'
+    | '/admin/login'
     | '/blog/$slug'
     | '/tools/$slug'
     | '/blog'
     | '/tools'
+    | '/admin'
   id:
     | '__root__'
     | '/'
@@ -129,10 +160,13 @@ export interface FileRouteTypes {
     | '/contact'
     | '/disclaimer'
     | '/privacy'
+    | '/admin/_authenticated'
+    | '/admin/login'
     | '/blog/$slug'
     | '/tools/$slug'
     | '/blog/'
     | '/tools/'
+    | '/admin/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -141,6 +175,8 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DisclaimerRoute: typeof DisclaimerRoute
   PrivacyRoute: typeof PrivacyRoute
+  AdminAuthenticatedRoute: typeof AdminAuthenticatedRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
   BlogSlugRoute: typeof BlogSlugRoute
   ToolsSlugRoute: typeof ToolsSlugRoute
   BlogIndexRoute: typeof BlogIndexRoute
@@ -212,8 +248,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/_authenticated': {
+      id: '/admin/_authenticated'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminAuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/_authenticated/': {
+      id: '/admin/_authenticated/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminAuthenticatedIndexRouteImport
+      parentRoute: typeof AdminAuthenticatedRoute
+    }
   }
 }
+
+interface AdminAuthenticatedRouteChildren {
+  AdminAuthenticatedIndexRoute: typeof AdminAuthenticatedIndexRoute
+}
+
+const AdminAuthenticatedRouteChildren: AdminAuthenticatedRouteChildren = {
+  AdminAuthenticatedIndexRoute: AdminAuthenticatedIndexRoute,
+}
+
+const AdminAuthenticatedRouteWithChildren =
+  AdminAuthenticatedRoute._addFileChildren(AdminAuthenticatedRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -221,6 +289,8 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DisclaimerRoute: DisclaimerRoute,
   PrivacyRoute: PrivacyRoute,
+  AdminAuthenticatedRoute: AdminAuthenticatedRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
   BlogSlugRoute: BlogSlugRoute,
   ToolsSlugRoute: ToolsSlugRoute,
   BlogIndexRoute: BlogIndexRoute,
@@ -229,3 +299,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
