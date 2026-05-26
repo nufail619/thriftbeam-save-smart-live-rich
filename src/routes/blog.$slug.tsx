@@ -128,6 +128,18 @@ function PostPage() {
 
   return (
     <>
+      <style>{`
+        .article-body p {
+          text-align: left;
+        }
+        @media (min-width: 768px) {
+          .article-body p {
+            text-align: justify;
+            hyphens: auto;
+          }
+        }
+      `}</style>
+
       {/* Reading progress */}
       <div className="fixed top-0 left-0 right-0 h-1 z-50 bg-transparent">
         <div className="h-full bg-primary transition-[width] duration-100" style={{ width: `${progress}%` }} />
