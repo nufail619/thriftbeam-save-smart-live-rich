@@ -169,7 +169,7 @@ function PostPage() {
         </div>
 
         <div className="mt-10 grid lg:grid-cols-[1fr_300px] gap-10">
-          <div className="min-w-0">
+          <div className="min-w-0 prose-container lg:mx-0">
             {/* Mobile TOC */}
             {headings.length > 0 && (
               <details open={tocOpen} onToggle={(e) => setTocOpen((e.target as HTMLDetailsElement).open)} className="lg:hidden rounded-xl border border-border bg-card mb-6">
