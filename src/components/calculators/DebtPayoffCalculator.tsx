@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { formatUSD } from "@/lib/mockData";
-import { Field, ResultRow, ResultPanel } from "./shared";
+import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_STROKE } from "./shared";
 
 export default function DebtPayoffCalculator() {
   const [debt, setDebt] = useState(10000);
@@ -45,20 +45,20 @@ export default function DebtPayoffCalculator() {
             <ResultRow label="≈ years" value={`${(result.months / 12).toFixed(1)} yrs`} />
             <ResultRow label="Total interest paid" value={formatUSD(result.totalInterest)} highlight="bad" />
             <ResultRow label="Total cost" value={formatUSD(debt + result.totalInterest)} />
-            <div className="h-48 mt-2">
-              <ResponsiveContainer>
+            <div className="mt-2 w-full h-56 min-h-[224px]">
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.15)" />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" fontSize={11} />
-                  <YAxis stroke="rgba(255,255,255,0.7)" fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={{ background: "#0F172A", border: "none", borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="balance" stroke="#FB7185" strokeWidth={2.5} dot={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                  <XAxis dataKey="month" stroke={CHART_AXIS_STROKE} fontSize={11} />
+                  <YAxis stroke={CHART_AXIS_STROKE} fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
+                  <Line type="monotone" dataKey="balance" stroke="#2563EB" strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </>
         ) : (
-          <p className="text-rose-200 text-sm">Your monthly payment is too low to cover the interest. Increase it to start making progress.</p>
+          <p className="text-rose-600 text-sm">Your monthly payment is too low to cover the interest. Increase it to start making progress.</p>
         )}
       </ResultPanel>
     </div>

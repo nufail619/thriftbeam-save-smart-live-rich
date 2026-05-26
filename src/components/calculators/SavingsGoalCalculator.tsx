@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { formatUSD } from "@/lib/mockData";
-import { Field, ResultRow, ResultPanel } from "./shared";
+import { Field, ResultRow, ResultPanel, CHART_TOOLTIP_STYLE, CHART_GRID_STROKE, CHART_AXIS_STROKE } from "./shared";
 
 export default function SavingsGoalCalculator() {
   const [goal, setGoal] = useState(10000);
@@ -43,20 +43,20 @@ export default function SavingsGoalCalculator() {
             <ResultRow label="Months to goal" value={`${result.months}`} highlight="good" />
             <ResultRow label="≈ years" value={`${(result.months / 12).toFixed(1)} yrs`} />
             <ResultRow label="Interest earned" value={formatUSD(result.interest)} />
-            <div className="h-48 mt-2">
-              <ResponsiveContainer>
+            <div className="mt-2 w-full h-56 min-h-[224px]">
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.15)" />
-                  <XAxis dataKey="month" stroke="rgba(255,255,255,0.7)" fontSize={11} />
-                  <YAxis stroke="rgba(255,255,255,0.7)" fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={{ background: "#0F172A", border: "none", borderRadius: 8 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                  <XAxis dataKey="month" stroke={CHART_AXIS_STROKE} fontSize={11} />
+                  <YAxis stroke={CHART_AXIS_STROKE} fontSize={11} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: number) => formatUSD(v)} contentStyle={CHART_TOOLTIP_STYLE} />
                   <Line type="monotone" dataKey="balance" stroke="#10B981" strokeWidth={2.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </>
         ) : (
-          <p className="text-rose-200 text-sm">At this rate you won't reach your goal in 100 years. Try increasing the monthly contribution.</p>
+          <p className="text-rose-600 text-sm">At this rate you won't reach your goal in 100 years. Try increasing the monthly contribution.</p>
         )}
       </ResultPanel>
     </div>
