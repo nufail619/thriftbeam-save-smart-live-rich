@@ -47,7 +47,7 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
             <span className="text-primary">Beam</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 lg:mx-auto">
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.to}
