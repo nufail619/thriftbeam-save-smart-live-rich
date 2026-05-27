@@ -133,10 +133,10 @@ function bodyTemplate(title: string, category: string): string {
 <p>If this guide helped, share it with one person who's working on the same goal. That tiny step is what keeps independent finance writing alive.</p>`;
 }
 
+// Fixed epoch so server and client render identical dates (no hydration mismatch).
+const FALLBACK_EPOCH = Date.UTC(2026, 4, 27); // 2026-05-27
 function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString();
+  return new Date(FALLBACK_EPOCH - n * 86400000).toISOString();
 }
 
 const seedPosts: Array<Omit<Post, "body">> = [
