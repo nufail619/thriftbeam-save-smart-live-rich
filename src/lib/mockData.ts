@@ -185,7 +185,12 @@ export function getRelated(post: Post, n = 3): Post[] {
   return posts.filter((p) => p.slug !== post.slug && p.category === post.category).slice(0, n);
 }
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 export function formatUSD(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n);

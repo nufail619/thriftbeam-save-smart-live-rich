@@ -34,6 +34,19 @@ function parseTags(t: unknown): string[] {
   return [];
 }
 
+function toISO(d: unknown): string {
+  if (typeof d !== "string") {
+    try {
+      return new Date(d as number).toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  }
+  // "YYYY-MM-DD HH:MM:SS" → treat as UTC so SSR and client agree.
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(d)) return d.replace(" ", "T") + "Z";
+  return d;
+}
+
 export function normalizeToPublicPost(raw: unknown): Post {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = (raw as any)?.post ?? raw ?? {};
@@ -43,10 +56,7 @@ export function normalizeToPublicPost(raw: unknown): Post {
     r.image ??
     r.thumbnail ??
     "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&h=675&q=70&fm=webp";
-  const date =
-    r.published_at ??
-    r.date ??
-    (typeof r.created_at === "string" ? r.created_at : new Date().toISOString());
+  const date = r.published_at ?? r.date ?? r.created_at ?? new Date().toISOString();
 
   return {
     slug: r.slug ?? "",
@@ -54,7 +64,7 @@ export function normalizeToPublicPost(raw: unknown): Post {
     excerpt: r.excerpt ?? "",
     category: findCategorySlug(r.category ?? r.category_name ?? r.category_slug ?? ""),
     authorSlug: findAuthor(r.author ?? r.author_name ?? ""),
-    date: typeof date === "string" ? date : new Date(date as number).toISOString(),
+    date: toISO(date),
     readTime: Number(r.readingTime ?? r.reading_time ?? r.readTime ?? 5),
     image,
     tags: parseTags(r.tags),
@@ -98,7 +108,11 @@ export type PublicListResult = {
 
 export const publicPostsApi = {
   list: async (params: PublicListParams = {}): Promise<PublicListResult> => {
-    const res = await api.get(`/posts${qs(params)}`);
+    // Send both `category` and `category_slug` (same for tag) — backend keying varies.
+    const expanded: Record<string, unknown> = { ...params };
+    if (params.category) expanded.category_slug = params.category;
+    if (params.tag) expanded.tag_slug = params.tag;
+    const res = await api.get(`/posts${qs(expanded)}`);
     const items = unwrapList(res).map(normalizeToPublicPost);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = res as any;

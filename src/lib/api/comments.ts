@@ -54,5 +54,14 @@ export const commentsApi = {
   setStatus: async (id: string, status: CommentStatus) =>
     norm(await api.put(`/comments/${id}`, { status })),
   remove: (id: string) => api.delete(`/comments/${id}`),
-  submit: async (payload: PublicCommentPayload) => norm(await api.post("/comments", payload)),
+  submit: async (payload: PublicCommentPayload) =>
+    norm(
+      await api.post("/comments", {
+        ...payload,
+        name: payload.author,
+        author_name: payload.author,
+        author_email: payload.email,
+        content: payload.body,
+      }),
+    ),
 };
