@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { posts, tools, categories } from "@/lib/mockData";
+import { tools, categories } from "@/lib/mockData";
+import { publicPostsApi } from "@/lib/api/publicPosts";
 
 const BASE_URL = "https://thriftbeam.com";
 
@@ -24,11 +25,17 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/disclaimer", changefreq: "yearly", priority: "0.3" },
         ];
 
-        const postEntries: SitemapEntry[] = posts.map((p) => ({
-          path: `/blog/${p.slug}`,
-          changefreq: "monthly",
-          priority: "0.7",
-        }));
+        let postEntries: SitemapEntry[] = [];
+        try {
+          const livePosts = await publicPostsApi.list({ per_page: 500 });
+          postEntries = livePosts.posts.map((p) => ({
+            path: `/blog/${p.slug}`,
+            changefreq: "monthly",
+            priority: "0.7",
+          }));
+        } catch {
+          postEntries = [];
+        }
 
         const toolEntries: SitemapEntry[] = tools.map((t) => ({
           path: `/tools/${t.slug}`,

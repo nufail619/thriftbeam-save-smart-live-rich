@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Clock, Facebook, Twitter, Linkedin, Link2, MessageCircle, Loader2 } from "lucide-react";
-import { getAuthor, getCategory, getRelated, formatDate, posts as fallbackPosts, type Post } from "@/lib/mockData";
+import { getAuthor, getCategory, formatDate, type Post } from "@/lib/mockData";
 import { publicPostsApi } from "@/lib/api/publicPosts";
 import { commentsApi } from "@/lib/api/comments";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -90,18 +90,13 @@ function PostPage() {
     return <div className="container-page py-20 flex items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading post…</div>;
   }
   if (isError || !data) {
-    // Fallback to mock if backend not yet seeded
-    const fallback = fallbackPosts.find((p) => p.slug === slug);
-    if (!fallback) {
-      return (
-        <div className="container-page py-20 text-center">
-          <h1 className="text-3xl font-bold">Post not found</h1>
-          <p className="mt-2 text-muted-foreground">{(error as Error)?.message}</p>
-          <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">← Back to blog</Link>
-        </div>
-      );
-    }
-    return <PostBody post={fallback} comments={[]} commentsLoading={false} onSubmit={(p) => submitMut.mutate(p)} submitting={submitMut.isPending} progress={progress} tocOpen={tocOpen} setTocOpen={setTocOpen} />;
+    return (
+      <div className="container-page py-20 text-center">
+        <h1 className="text-3xl font-bold">Post not found</h1>
+        <p className="mt-2 text-muted-foreground">{(error as Error)?.message}</p>
+        <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">← Back to blog</Link>
+      </div>
+    );
   }
 
   return <PostBody post={data} comments={comments} commentsLoading={commentsQuery.isLoading} onSubmit={(p) => submitMut.mutate(p)} submitting={submitMut.isPending} progress={progress} tocOpen={tocOpen} setTocOpen={setTocOpen} />;
@@ -128,7 +123,7 @@ function PostBody({
 }) {
   const author = getAuthor(post.authorSlug);
   const category = getCategory(post.category);
-  const related = getRelated(post, 3);
+  const related: Post[] = [];
   const { html, headings } = extractHeadings(post.body || "");
 
   function share(network: string) {
