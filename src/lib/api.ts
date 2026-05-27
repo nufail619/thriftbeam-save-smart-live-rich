@@ -1,7 +1,7 @@
 // Real API client for ThriftBeam PHP backend.
 // Response envelope: { ok: true, data } on success, { error } on failure.
 
-export const API_BASE = "https://thriftbeam.com/api";
+export const API_BASE = "https://api.thriftbeam.com";
 
 const TOKEN_KEY = "tb_token";
 const USER_KEY = "tb_user";
