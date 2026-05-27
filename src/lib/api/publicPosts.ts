@@ -3,21 +3,21 @@
 
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/mockData";
-import { authors, categories } from "@/lib/mockData";
+
+function slugify(value: string): string {
+  return String(value ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 function findAuthor(name: string): string {
-  const a = authors.find((x) => x.name.toLowerCase() === (name ?? "").toLowerCase());
-  return a?.slug ?? authors[0]?.slug ?? "";
+  return slugify(name);
 }
 
 function findCategorySlug(value: string): string {
-  if (!value) return categories[0]?.slug ?? "";
-  const lower = String(value).toLowerCase();
-  const bySlug = categories.find((c) => c.slug.toLowerCase() === lower);
-  if (bySlug) return bySlug.slug;
-  const byName = categories.find((c) => c.name.toLowerCase() === lower);
-  if (byName) return byName.slug;
-  return lower.replace(/\s+/g, "-");
+  return slugify(value);
 }
 
 function parseTags(t: unknown): string[] {

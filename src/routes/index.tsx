@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Calculator, Users, Star, Loader2 } from "lucide-react";
-import { categories, posts as fallbackPosts, getAuthor } from "@/lib/mockData";
+import { categories, authors, getAuthor } from "@/lib/mockData";
 import { publicPostsApi } from "@/lib/api/publicPosts";
 import CategoryCard from "@/components/CategoryCard";
 import PostCard from "@/components/PostCard";
@@ -27,9 +27,11 @@ function Home() {
     queryFn: () => publicPostsApi.latest(6),
   });
 
-  const latest = data && data.length ? data : fallbackPosts.slice(0, 6);
+  const latest = data ?? [];
   const featured = latest.slice(0, 3);
-  const featuredAuthors = featured.map((p) => getAuthor(p.authorSlug)).filter(Boolean);
+  const featuredAuthors = featured.length
+    ? featured.map((p) => getAuthor(p.authorSlug)).filter(Boolean)
+    : authors.slice(0, 3);
 
   return (
     <>

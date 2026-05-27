@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Search, X, ArrowRight, CornerDownLeft } from "lucide-react";
-import { posts, getCategory } from "@/lib/mockData";
+import { useQuery } from "@tanstack/react-query";
+import { Search, X, ArrowRight, CornerDownLeft, Loader2 } from "lucide-react";
+import { getCategory } from "@/lib/mockData";
+import { publicPostsApi } from "@/lib/api/publicPosts";
 
 function highlight(text: string, q: string) {
   if (!q.trim()) return text;
@@ -18,27 +20,25 @@ function highlight(text: string, q: string) {
 
 export default function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [active, setActive] = useState(0);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
-  const results = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    if (!query) return posts.slice(0, 6);
-    return posts
-      .filter((p) => {
-        const cat = getCategory(p.category)?.name ?? "";
-        return (
-          p.title.toLowerCase().includes(query) ||
-          cat.toLowerCase().includes(query) ||
-          p.tags.some((t) => t.toLowerCase().includes(query))
-        );
-      })
-      .slice(0, 8);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 200);
+    return () => clearTimeout(t);
   }, [q]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["public", "search", debounced],
+    queryFn: () => publicPostsApi.list({ q: debounced || undefined, per_page: 8 }),
+    enabled: open,
+  });
+  const results = data?.posts ?? [];
 
   useEffect(() => {
     setActive(0);
-  }, [q, open]);
+  }, [debounced, open]);
 
   useEffect(() => {
     if (!open) {
@@ -104,16 +104,23 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
           </button>
         </div>
 
-        {!q.trim() && (
+        {!debounced && (
           <p className="px-4 pt-3 text-xs uppercase tracking-wide text-muted-foreground font-semibold">
             Recent posts
           </p>
         )}
 
         <ul className="max-h-[60vh] overflow-y-auto py-1" role="listbox">
-          {results.length === 0 && (
+          {isLoading && (
+            <li className="px-4 py-10 text-center text-sm text-muted-foreground inline-flex items-center justify-center gap-2 w-full">
+              <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+            </li>
+          )}
+          {!isLoading && results.length === 0 && (
             <li className="px-4 py-10 text-center">
-              <p className="text-muted-foreground">No results for "{q}"</p>
+              <p className="text-muted-foreground">
+                {debounced ? `No results for "${debounced}"` : "No posts yet."}
+              </p>
               <Link
                 to="/blog"
                 onClick={onClose}
@@ -123,7 +130,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
               </Link>
             </li>
           )}
-          {results.map((p, i) => (
+          {!isLoading && results.map((p, i) => (
             <li key={p.slug} role="option" aria-selected={i === active}>
               <Link
                 id={`search-result-${p.slug}`}
@@ -137,7 +144,7 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
               >
                 <img src={p.image} alt="" loading="lazy" decoding="async" width={64} height={36} className="h-9 w-16 rounded object-cover" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{highlight(p.title, q)}</div>
+                  <div className="text-sm font-medium truncate">{highlight(p.title, debounced)}</div>
                   <div className="text-xs text-muted-foreground">{getCategory(p.category)?.name}</div>
                 </div>
                 {i === active && <CornerDownLeft className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}

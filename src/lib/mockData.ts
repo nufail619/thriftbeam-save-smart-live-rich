@@ -139,50 +139,11 @@ function daysAgo(n: number): string {
   return new Date(FALLBACK_EPOCH - n * 86400000).toISOString();
 }
 
-const seedPosts: Array<Omit<Post, "body">> = [
-  // Budgeting (5)
-  { slug: "saved-5000-in-6-months-50-30-20", title: "How I Saved $5,000 in 6 Months Using the 50/30/20 Rule", excerpt: "A simple budgeting framework that worked when nothing else did — and the small tweaks that made it stick.", category: "budgeting", authorSlug: "sara-okafor", date: daysAgo(3), readTime: 8, image: img("photo-1554224155-6726b3ff858f"), tags: ["50/30/20", "budgeting", "habits"], featured: true },
-  { slug: "zero-based-budget-beginners", title: "The Zero-Based Budget: A Beginner's Walkthrough", excerpt: "Give every dollar a job without spending your Sunday on a spreadsheet.", category: "budgeting", authorSlug: "maya-chen", date: daysAgo(12), readTime: 7, image: img("photo-1579621970590-9d624316904b"), tags: ["zero-based", "budgeting"] },
-  { slug: "budget-categories-actually-matter", title: "The 7 Budget Categories That Actually Matter", excerpt: "Skip the 40-line spreadsheet. These are the only buckets you need to track.", category: "budgeting", authorSlug: "maya-chen", date: daysAgo(22), readTime: 6, image: img("photo-1518186285589-2f7649de83e0"), tags: ["categories", "simple"] },
-  { slug: "budget-couples-conflict-free", title: "How to Budget With a Partner Without Fighting About It", excerpt: "A calm, two-meeting system for couples who don't agree on money — yet.", category: "budgeting", authorSlug: "sara-okafor", date: daysAgo(40), readTime: 9, image: img("photo-1521791136064-7986c2920216"), tags: ["couples", "communication"] },
-  { slug: "irregular-income-budget", title: "Budgeting When Your Income Changes Every Month", excerpt: "Freelancers and tipped workers can budget too — here's the pattern.", category: "budgeting", authorSlug: "james-rivera", date: daysAgo(58), readTime: 8, image: img("photo-1556742502-ec7c0e9f34b1"), tags: ["freelance", "variable"] },
-
-  // Debt
-  { slug: "debt-snowball-step-by-step", title: "The Debt Snowball Method: Step-by-Step Guide", excerpt: "Pay off your smallest balance first and use the momentum to crush the rest.", category: "debt-payoff", authorSlug: "maya-chen", date: daysAgo(6), readTime: 9, image: img("photo-1454165804606-c3d57bc86b40"), tags: ["snowball", "strategy"], featured: true },
-  { slug: "avalanche-vs-snowball", title: "Avalanche vs Snowball: Which Debt Method Wins?", excerpt: "The math says one. Behavior says the other. Here's how to actually choose.", category: "debt-payoff", authorSlug: "james-rivera", date: daysAgo(18), readTime: 7, image: img("photo-1554224154-26032ffc0d07"), tags: ["avalanche", "snowball"] },
-  { slug: "negotiate-credit-card-apr", title: "How to Negotiate a Lower APR (Script Included)", excerpt: "A 5-minute phone call has saved our readers an average of $312 a year.", category: "debt-payoff", authorSlug: "maya-chen", date: daysAgo(29), readTime: 5, image: img("photo-1563013544-824ae1b704d3"), tags: ["apr", "negotiation"] },
-  { slug: "consolidation-loan-trap", title: "When a Consolidation Loan Helps — and When It's a Trap", excerpt: "Lower payments aren't always lower costs. Run these three checks first.", category: "debt-payoff", authorSlug: "james-rivera", date: daysAgo(44), readTime: 8, image: img("photo-1450101499163-c8848c66ca85"), tags: ["consolidation"] },
-  { slug: "student-loan-payoff-plan", title: "Building a Student Loan Payoff Plan You'll Stick To", excerpt: "Federal, private, mixed — a flexible framework for every situation.", category: "debt-payoff", authorSlug: "sara-okafor", date: daysAgo(63), readTime: 10, image: img("photo-1523240795612-9a054b0db644"), tags: ["student-loans"] },
-
-  // Side hustles
-  { slug: "side-hustles-that-pay-2025", title: "7 Side Hustles That Actually Pay in 2025", excerpt: "Tested, ranked and reviewed — what's worth your weekends and what isn't.", category: "side-hustles", authorSlug: "james-rivera", date: daysAgo(1), readTime: 11, image: img("photo-1559526324-4b87b5e36e44"), tags: ["income", "2025"], featured: true },
-  { slug: "freelance-writing-first-1000", title: "How to Earn Your First $1,000 Freelance Writing", excerpt: "The realistic 60-day plan, including where to actually find clients.", category: "side-hustles", authorSlug: "maya-chen", date: daysAgo(15), readTime: 9, image: img("photo-1455390582262-044cdead277a"), tags: ["freelance", "writing"] },
-  { slug: "rideshare-vs-delivery", title: "Rideshare vs Delivery: Which Pays More After Expenses?", excerpt: "We crunched 90 days of data from drivers in five cities.", category: "side-hustles", authorSlug: "james-rivera", date: daysAgo(34), readTime: 7, image: img("photo-1502877338535-766e1452684a"), tags: ["gig"] },
-
-  // Frugal living
-  { slug: "grocery-bill-cut-30-percent", title: "Cut Your Grocery Bill 30% Without Coupon Stress", excerpt: "Six habits that actually move the needle on weekly food spending.", category: "frugal-living", authorSlug: "sara-okafor", date: daysAgo(9), readTime: 6, image: img("photo-1542838132-92c53300491e"), tags: ["groceries", "savings"] },
-  { slug: "annual-cost-audit", title: "The Annual Cost Audit That Saves Most People $1,200+", excerpt: "Once a year, sit down for 45 minutes and run this checklist.", category: "frugal-living", authorSlug: "maya-chen", date: daysAgo(26), readTime: 7, image: img("photo-1488998427799-e3362cec87c3"), tags: ["audit", "annual"] },
-
-  // Credit & banking
-  { slug: "best-cashback-cards-2025", title: "Best Credit Cards for Cashback in 2025", excerpt: "Honest picks ranked by real-world earnings, not marketing fluff.", category: "credit-banking", authorSlug: "james-rivera", date: daysAgo(4), readTime: 12, image: img("photo-1556742502-ec7c0e9f34b1"), tags: ["credit-cards", "cashback"] },
-
-  // Insurance
-  { slug: "emergency-fund-how-much", title: "Emergency Fund: How Much You Really Need", excerpt: "The 3-6 month rule is a starting point — here's how to find your actual number.", category: "insurance-tips", authorSlug: "sara-okafor", date: daysAgo(11), readTime: 6, image: img("photo-1579621970563-ebec7560ff3e"), tags: ["emergency-fund"] },
-];
-
-export const posts: Post[] = seedPosts.map((p) => ({ ...p, body: bodyTemplate(p.title, p.category) }));
-
-export function getPost(slug: string): Post | undefined {
-  return posts.find((p) => p.slug === slug);
-}
 export function getAuthor(slug: string): Author | undefined {
   return authors.find((a) => a.slug === slug);
 }
 export function getCategory(slug: string): Category | undefined {
   return categories.find((c) => c.slug === slug);
-}
-export function getRelated(post: Post, n = 3): Post[] {
-  return posts.filter((p) => p.slug !== post.slug && p.category === post.category).slice(0, n);
 }
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {

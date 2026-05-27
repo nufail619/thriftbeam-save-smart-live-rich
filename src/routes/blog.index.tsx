@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import { categories, posts as fallbackPosts } from "@/lib/mockData";
+import { categories } from "@/lib/mockData";
 import { publicPostsApi } from "@/lib/api/publicPosts";
 import PostCard from "@/components/PostCard";
 import AdSlot from "@/components/AdSlot";
@@ -44,14 +44,13 @@ function BlogPage() {
       }),
   });
 
-  const paged = data?.posts ?? (isError
-    ? (activeCat ? fallbackPosts.filter((p) => p.category === activeCat) : fallbackPosts).slice((page - 1) * PER_PAGE, page * PER_PAGE)
-    : []);
+  const paged = data?.posts ?? [];
   const totalPages = Math.max(1, data?.pages ?? 1);
   const current = Math.min(page, totalPages);
 
-  const popular = (data?.posts && data.posts.length ? data.posts : fallbackPosts).slice(0, 5);
-  const allTags = Array.from(new Set((data?.posts && data.posts.length ? data.posts : fallbackPosts).flatMap((p) => p.tags))).slice(0, 14);
+  const popular = paged.slice(0, 5);
+  const allTags = Array.from(new Set(paged.flatMap((p) => p.tags))).slice(0, 14);
+  if (isError) void 0;
 
   return (
     <div className="container-page py-10 md:py-16">

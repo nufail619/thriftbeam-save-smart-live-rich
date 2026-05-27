@@ -16,10 +16,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import CookieConsent from "@/components/CookieConsent";
-import { posts } from "@/lib/mockData";
+
 
 function NotFoundComponent() {
-  const popular = posts.filter((p) => p.featured).slice(0, 3);
   return (
     <div className="container-page py-16 md:py-24">
       <div className="max-w-2xl mx-auto text-center">
@@ -48,28 +47,6 @@ function NotFoundComponent() {
           </Link>
         </div>
       </div>
-
-      {popular.length > 0 && (
-        <div className="mt-16 max-w-3xl mx-auto">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold text-center mb-4">
-            Popular right now
-          </p>
-          <ul className="grid gap-3 md:grid-cols-3">
-            {popular.map((p) => (
-              <li key={p.slug}>
-                <Link
-                  to="/blog/$slug"
-                  params={{ slug: p.slug }}
-                  className="block rounded-2xl border border-border bg-card p-4 hover:shadow-card-hover hover:-translate-y-0.5 transition-all"
-                >
-                  <img src={p.image} alt="" loading="lazy" className="aspect-video w-full rounded-lg object-cover" />
-                  <p className="mt-3 text-sm font-semibold line-clamp-2">{p.title}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
