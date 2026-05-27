@@ -1,67 +1,68 @@
-# Phase 2 — Connect remaining admin + all public site to backend
+# Phase 2 QA — Findings & Fixes
 
-Same pattern as Phase 1: per-resource client in `src/lib/api/*.ts` with a defensive `normalize*()` (snake→camel, tolerant of wrappers), TanStack Query in route components, skeleton loaders, toast errors, optimistic invalidation. No UI/layout/styling changes.
+I probed the live API (`https://thriftbeam.com/api/*`) and cross-checked each client + consumer against the actual response shapes. Below is the QA result for the 13 items, then the exact patches needed.
 
-## 0. Login page cleanup
-- `src/routes/admin.login.tsx`: remove the "Demo credentials" `<p>` block (lines 191–194) and the `placeholder="admin@thriftbeam.com"` (use generic `"you@example.com"`).
+## QA results
 
-## 1. New API clients (`src/lib/api/`)
-Create one file per resource, each exporting a typed client + normalizer:
+| # | Item | Status | Notes |
+|---|---|---|---|
+| 1 | `/admin/login` cleanup | ✓ | Demo hint + placeholder removed last phase. |
+| 2 | Categories CRUD | ⚠️ | `GET /categories` returns `data: [...]` directly (no `items` wrapper) — current `list()` already handles arrays, so list works. Normalizer drops `icon`, `color`, `sort_order`, `post_count`; not used by the UI today, safe. |
+| 3 | Users CRUD | ✓ (requires login) | Endpoint 401s without auth as expected; shape matches normalizer's tolerant fields. |
+| 4 | Media upload/list/delete | ✓ | XHR upload with progress is wired; normalizer accepts `mime_type`/`public_url`/etc. |
+| 5 | Comments moderation | ✓ | List + status update OK. |
+| 6 | Newsletter admin | ✓ | List + delete OK. |
+| 7 | Pages CRUD | ⚠️ | `GET /pages` returns rows without `status` → every page renders as "draft". Default to `"published"` when the backend omits `status` (pages exist = published). |
+| 8 | Settings load + save | ✗ | **Real bug.** `GET /settings` returns **nested groups** (`{cache:{...}, cookies:{...}, seo:{...}, newsletter:{...}, integrations:{...}, maintenance:{...}}`), NOT a flat key/value map. UI tries to read `draft["site_title"]` etc., which are undefined; saving `PUT /settings/site_title` will 404. Need to (a) flatten nested groups → dotted keys on load and (b) save the whole group back, or accept current shape and rewrite the FIELDS map. Lowest-risk fix: hydrate the draft from the nested shape using the existing flat keys where they exist (`seo.default_title` → `site_title` alias) and POST changes to `PUT /settings` with the full nested payload. See "Technical notes" for the exact mapping. |
+| 9 | Homepage latest posts | ✓ | Confirmed in network log — 3 posts render. |
+| 10 | `/blog` filters + pagination | ⚠️ | Client sends `?category=<slug>`; backend likely keys on `category_slug`. Add both params for safety (`category` and `category_slug`); same for `tag`. |
+| 11 | `/blog/:slug` post + comments | ⚠️ | (a) `commentsApi.submit` sends `author` but PHP backends conventionally accept `name` — send both. (b) Approved comments endpoint already handled. |
+| 12 | Newsletter signup form | ✓ | Subscribe path works. |
+| 13 | Contact form | ✓ | Simple POST, no normalization needed. |
 
-- `categories.ts` — list/create/update/remove → `/categories`
-- `users.ts` — list/create/update/remove → `/users` (no password echo)
-- `media.ts` — list/update/remove → `/media`; `upload(file, onProgress)` uses existing `api.upload` (XHR with progress events already wired in `src/lib/api.ts`)
-- `comments.ts` — list/setStatus/remove → `/comments`
-- `newsletter.ts` — admin list/update/remove + public `subscribe(email)` → `/newsletter`
-- `pages.ts` — list/get/create/update/remove → `/pages`
-- `settings.ts` — `getAll()` → `/settings`; `update(key, value)` → `PUT /settings/:key`
-- `contact.ts` — public `send({name,email,message})` → `POST /contact`
-- `public.ts` — `latestPosts({per_page})`, `listPosts({category,tag,q,page})`, `getPostBySlug(slug)` reusing `postsApi.getBySlug` and a new lightweight `listPublic()` against `GET /posts`
+### Additional runtime bug surfaced during QA
 
-All normalizers tolerate `{items|data|<resource>:[…]}` shapes and map snake_case → camelCase for known fields.
+**Hydration mismatch on PostCard date.** Console shows `+ May 24, 2026` (server) vs `- May 23, 2026` (client). Cause: backend dates come as `"2026-05-26 20:01:51"` (no `T`, no `Z`). `new Date(...).toLocaleDateString("en-US")` interprets that string as local time, so the server (UTC) and client (other TZ) disagree.
 
-## 2. Admin routes — swap mock store → Query/Mutation
-For each route below: replace `adminStore` reads with `useQuery`, replace writes with `useMutation` + `qc.invalidateQueries`, keep all JSX/markup/animations intact, add a `Loader2`/skeleton state and `toast.error(err.message)` for failures.
+Fix in two places:
+1. `normalizeToPublicPost` (publicPosts.ts): convert `"YYYY-MM-DD HH:MM:SS"` → `"YYYY-MM-DDTHH:MM:SSZ"` so the value is unambiguous UTC.
+2. `formatDate` (mockData.ts): pass `{ timeZone: "UTC" }` to `toLocaleDateString` so SSR and client agree.
 
-- `admin._authenticated.users.tsx` → `usersApi`
-- `admin._authenticated.media.tsx` → `mediaApi`; upload UI calls `mediaApi.upload(file, onProgress)`, drive existing progress bar from XHR pct
-- `admin._authenticated.comments.tsx` → `commentsApi`
-- `admin._authenticated.newsletter.tsx` → `newsletterApi`
-- `admin._authenticated.pages.index.tsx` + `admin._authenticated.pages.$id.edit.tsx` → `pagesApi` (mirror Posts pattern; new-page flow saves then `navigate` to edit)
-- `admin._authenticated.settings.tsx` → `settingsApi.getAll()` for hydration, `settingsApi.update(key,val)` on save
-- Categories: surfaced in the Post editor's category select + `admin._authenticated.posts.index.tsx` filter — switch both to `useQuery(["categories"], categoriesApi.list)` with the existing `CATEGORIES` mock as fallback only while loading
+## Patches
 
-## 3. Public site
-- `routes/index.tsx` — hero/latest posts grid: `useQuery(["public","latest"], () => publicApi.latestPosts({per_page:6}))`. Keep skeleton placeholders already present.
-- `routes/blog.index.tsx` — `useQuery(["public","posts",filters], …)` driven by URL search params (category/tag/q/page) via existing controls.
-- `routes/blog.$slug.tsx` — `useQuery(["public","post",slug], () => publicApi.getPostBySlug(slug))` for body; `useQuery(["public","comments",slug])` for approved comments list under the post; comment form posts to `commentsApi.submitPublic({postId,name,email,body})` → `POST /comments`, then invalidate.
-- `components/NewsletterSignup.tsx` — submit via `newsletterApi.subscribe(email)`, success/error toasts, disable button while pending.
-- `routes/contact.tsx` — submit via `contactApi.send(values)`, success state + toast.
+### `src/lib/api/settings.ts`
+Replace the flatten logic with a nested-group hydrator + a flat-key writer that maps back to the group/field the backend expects:
 
-## 4. Defensive behavior
-- All clients re-use the shared `api` helper (Bearer header, 401 → redirect, envelope unwrap) — no direct `fetch` anywhere.
-- Normalizers return safe defaults so missing optional fields never crash the UI (`tags: []`, `views: 0`, etc.).
-- Public endpoints don't send Authorization — `api.ts` already skips the header when no token is present, so no change needed.
+```ts
+// Flatten nested groups into dotted keys ("seo.default_title")
+// AND alias common admin-UI keys to their nested counterparts
+// (e.g. site_title → general.site_title, allow_comments → discussion.allow_comments).
+// update(key, value): split "group.field"; if no dot, look it up in ALIASES.
+// Send PUT /settings with { [group]: { [field]: value } } (PHP backend merges).
+```
+The admin Settings UI doesn't change — its existing FIELDS keys are kept and the client resolves them via an ALIAS map.
 
-## 5. QA pass (after build)
-Open published preview and verify in order:
-1. `/admin/login` — no demo credential hint visible; sign in works.
-2. Categories CRUD via Post editor and Posts filter.
-3. Users page lists + create/edit/delete.
-4. Media: upload an image, progress bar advances, item appears in grid; delete works.
-5. Comments: list loads, approve/spam/trash mutate, counts update.
-6. Newsletter admin: list loads, delete works.
-7. Pages: list, create, edit, save, delete.
-8. Settings: load values, change one, save, refresh persists.
-9. `/` shows real latest posts (6).
-10. `/blog` filters update results; pagination works.
-11. `/blog/:slug` renders real post; comment submit returns success and shows pending message.
-12. Newsletter signup on home/footer succeeds.
-13. `/contact` submit succeeds.
+### `src/lib/api/pages.ts`
+`norm()`: default `status` to `"published"` when missing (backend currently omits it for existing pages).
 
-Report each ✓ / ✗ with the failing toast message if any.
+### `src/lib/api/comments.ts`
+`submit()`: include both `author` and `name` (and `body`/`content`) in the payload so it works regardless of which field name the backend expects.
 
-## Technical notes
-- All new files are pure client modules; no server functions, no Cloud usage (the backend is external PHP).
-- Keeps `mockAdminData.ts` types as the canonical TS shapes — clients return those types after normalization, so route components don't need refactoring beyond swapping the data source.
-- Estimated edits: ~9 new `src/lib/api/*.ts` files, ~10 route file modifications, 2 component modifications, 1 login cleanup.
+### `src/lib/api/publicPosts.ts`
+- Add `toISO()` helper: if `date` matches `/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/`, replace the space with `T` and append `Z`.
+- `list()`: send `category` AND `category_slug` (same for `tag`/`tag_slug`) when those filters are set.
+
+### `src/lib/mockData.ts`
+`formatDate()`: add `timeZone: "UTC"` to the `toLocaleDateString` options.
+
+### No UI/markup changes
+All edits are inside `src/lib/api/*.ts` and the two formatters. No route components, no layouts.
+
+## Verification after patch
+1. Reload `/` — hydration warning gone in console.
+2. Sign in, open `/admin/settings`, toggle "Allow comments", save, refresh → value persists.
+3. `/admin/pages` shows real status badge ("published") instead of all "draft".
+4. `/blog?category=budgeting` filters to that category.
+5. Submit a comment on `/blog/hi` → success toast, "pending review" message.
+
+Report ✓ / ✗ per item with any remaining toast errors.

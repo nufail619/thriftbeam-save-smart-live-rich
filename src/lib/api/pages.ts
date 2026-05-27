@@ -9,7 +9,7 @@ function norm(raw: unknown): AdminPage {
     title: r.title ?? "",
     slug: r.slug ?? "",
     template: (r.template as AdminPageTemplate) ?? "default",
-    status: (r.status as AdminPageStatus) ?? "draft",
+    status: (r.status as AdminPageStatus) ?? "published",
     lastEdited:
       typeof r.updated_at === "string"
         ? r.updated_at.slice(0, 10)
