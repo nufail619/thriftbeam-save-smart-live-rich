@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Eye, Compass, Heart } from "lucide-react";
-import { authors } from "@/lib/mockData";
+import { useQuery } from "@tanstack/react-query";
+import { Eye, Compass, Heart, Loader2 } from "lucide-react";
+import { publicPagesApi } from "@/lib/api/publicPages";
 import NewsletterSignup from "@/components/NewsletterSignup";
 
 export const Route = createFileRoute("/about")({
@@ -24,75 +25,60 @@ const VALUES = [
 ];
 
 function AboutPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["page", "about"],
+    queryFn: () => publicPagesApi.bySlug("about"),
+    staleTime: 60_000,
+  });
+
   return (
     <>
       <section className="container-page py-12 md:py-20">
         <p className="text-sm text-primary font-semibold uppercase tracking-wide">About</p>
-        <h1 className="mt-2 text-4xl md:text-6xl font-bold tracking-tight max-w-3xl">
-          Our mission: make smart money decisions feel simple.
+        <h1 className="mt-2 text-4xl md:text-5xl font-bold tracking-tight">
+          {data?.title || "About ThriftBeam"}
         </h1>
-        <p className="mt-5 text-lg text-muted-foreground max-w-2xl">
-          ThriftBeam exists because most personal finance content is either too basic to be useful or too technical to actually try. We aim for the middle: calm, specific, and useful within an afternoon.
-        </p>
-      </section>
 
-      <section className="bg-surface section-pad">
-        <div className="container-page grid md:grid-cols-2 gap-10 items-center">
-          <div>
-            <h2 className="text-3xl font-bold">Our story</h2>
-            <p className="mt-4 text-muted-foreground">
-              ThriftBeam started as a shared Google Doc between three friends comparing notes on debt payoff strategies. The doc kept getting forwarded — to roommates, then siblings, then strangers. Two years later, it's a small team publishing weekly to more than 10,000 subscribers who care more about getting it right than getting it fast.
-            </p>
-            <p className="mt-4 text-muted-foreground">
-              We don't sell courses. We don't run a hedge fund. We write what we wish we'd read when we were starting out — and we keep editing until it's actually useful.
-            </p>
-          </div>
-          <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-card border border-border">
-            <img
-              src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=70&fm=webp"
-              alt="ThriftBeam team working together"
-              loading="lazy"
-              decoding="async"
-              width={900}
-              height={675}
-              className="h-full w-full object-cover"
+        <div className="mt-8 max-w-3xl">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <div
+              className="prose prose-neutral dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: data?.content ?? "" }}
             />
-          </div>
+          )}
         </div>
       </section>
 
-      <section className="container-page section-pad">
-        <h2 className="text-3xl font-bold text-center">What we stand for</h2>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {VALUES.map((v) => (
-            <div key={v.title} className="rounded-2xl p-6 bg-card border border-border">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary inline-flex items-center justify-center mb-4">
-                <v.icon className="h-6 w-6" />
+      <section className="container-page py-12 md:py-16 border-t border-border">
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">What we stand for</h2>
+        <div className="mt-8 grid md:grid-cols-3 gap-6">
+          {VALUES.map(({ icon: Icon, title, body }) => (
+            <div key={title} className="rounded-2xl bg-card border border-border p-6">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary inline-flex items-center justify-center">
+                <Icon className="h-5 w-5" aria-hidden="true" />
               </div>
-              <h3 className="text-lg font-bold">{v.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{v.body}</p>
+              <h3 className="mt-4 font-bold text-lg">{title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{body}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="bg-surface section-pad">
-        <div className="container-page">
-          <h2 className="text-3xl font-bold text-center">Meet the team</h2>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {authors.map((a) => (
-              <div key={a.slug} className="rounded-2xl p-6 bg-card border border-border text-center">
-                <img src={a.avatar} alt={a.name} loading="lazy" width={96} height={96} className="h-24 w-24 rounded-full object-cover mx-auto" />
-                <h3 className="mt-4 font-bold text-lg">{a.name}</h3>
-                <p className="text-sm text-primary font-medium">{a.role}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{a.bio}</p>
-              </div>
-            ))}
+      <section className="container-page py-12 md:py-16 border-t border-border">
+        <div className="max-w-2xl">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Stay in the loop</h2>
+          <p className="mt-3 text-muted-foreground">
+            One weekly email. Practical money tips, no spam.
+          </p>
+          <div className="mt-6">
+            <NewsletterSignup />
           </div>
         </div>
       </section>
-
-      <NewsletterSignup variant="coral" />
     </>
   );
 }
