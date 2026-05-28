@@ -75,12 +75,12 @@ function GlobalTab() {
 function SitemapTab() {
   const { data: postsRes } = useQuery({ queryKey: ["posts", "sitemap"], queryFn: () => publicPostsApi.list({ per_page: 100 }) });
   const { data: pages = [] } = useQuery({ queryKey: ["pages"], queryFn: () => pagesApi.list() });
-  const posts = postsRes?.items ?? [];
+  const posts = postsRes?.posts ?? [];
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     { loc: "/", mod: today },
     ...pages.filter((p) => p.status === "published").map((p) => ({ loc: `/${p.slug}`, mod: p.lastEdited })),
-    ...posts.slice(0, 30).map((p) => ({ loc: `/blog/${p.slug}`, mod: p.date ?? today })),
+    ...posts.slice(0, 30).map((p) => ({ loc: `/blog/${p.slug}`, mod: (p.date ?? today).slice(0, 10) })),
   ];
   return (
     <div className="space-y-4">
