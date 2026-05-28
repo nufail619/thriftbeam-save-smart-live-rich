@@ -1,30 +1,48 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useSettingsGroup } from "@/context/SettingsContext";
+import { cookiesPublicApi } from "@/lib/api/siteSettings";
 
 const STORAGE_KEY = "tb_cookies";
 
 type Prefs = { necessary: true; analytics: boolean; advertising: boolean; marketing: boolean; ts: number };
 
-function isFresh(p: Prefs | null): boolean {
+type CookieSettings = {
+  enabled?: boolean;
+  banner_text?: string;
+  text?: string;
+  position?: "bottom" | "top" | "bottom-left" | "bottom-right";
+  duration_days?: number;
+  accept_label?: string;
+  decline_label?: string;
+};
+
+function isFresh(p: Prefs | null, days: number): boolean {
   if (!p) return false;
-  const ninetyDays = 1000 * 60 * 60 * 24 * 90;
-  return Date.now() - p.ts < ninetyDays;
+  const window = 1000 * 60 * 60 * 24 * Math.max(1, days);
+  return Date.now() - p.ts < window;
 }
 
 export default function CookieConsent() {
+  const c = useSettingsGroup<CookieSettings>("cookies");
+  const enabled = c.enabled !== false; // default on
+  const days = Number(c.duration_days ?? 90);
+  const bannerText = c.banner_text || c.text || "We use cookies to improve your experience, analyze traffic, and personalize content. Choose what's right for you.";
+
   const [show, setShow] = useState(false);
   const [customize, setCustomize] = useState(false);
   const [prefs, setPrefs] = useState({ analytics: true, advertising: false, marketing: false });
 
   useEffect(() => {
+    if (!enabled) return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed: Prefs | null = raw ? JSON.parse(raw) : null;
-      if (!isFresh(parsed)) setShow(true);
+      if (!isFresh(parsed, days)) setShow(true);
     } catch {
       setShow(true);
     }
-  }, []);
+  }, [enabled, days]);
 
   function save(custom = false) {
     const payload: Prefs = {
@@ -35,19 +53,25 @@ export default function CookieConsent() {
       ts: Date.now(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    // Best-effort server log
+    void cookiesPublicApi.log({
+      accepted_all: !custom,
+      analytics: payload.analytics,
+      advertising: payload.advertising,
+      marketing: payload.marketing,
+      ts: payload.ts,
+    });
     setShow(false);
     setCustomize(false);
   }
 
-  if (!show) return null;
+  if (!enabled || !show) return null;
 
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-40 p-3 sm:p-5 animate-in slide-in-from-bottom duration-300">
         <div className="mx-auto max-w-4xl rounded-2xl bg-card border border-border shadow-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center gap-4">
-          <p className="text-sm text-foreground flex-1">
-            We use cookies to improve your experience, analyze traffic, and personalize content. Choose what's right for you.
-          </p>
+          <p className="text-sm text-foreground flex-1">{bannerText}</p>
           <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={() => setCustomize(true)}
@@ -59,7 +83,7 @@ export default function CookieConsent() {
               onClick={() => save(false)}
               className="h-11 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              Accept All
+              {c.accept_label || "Accept All"}
             </button>
           </div>
         </div>

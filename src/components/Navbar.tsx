@@ -2,16 +2,28 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X, Search } from "lucide-react";
 import SearchModal from "./SearchModal";
+import { useSettingsGroup } from "@/context/SettingsContext";
 
-const NAV_LINKS = [
+type NavLink = { to?: string; href?: string; label: string };
+type NavbarSettings = { links?: NavLink[] };
+type SiteSettings = { title?: string; site_title?: string };
+
+const DEFAULT_LINKS: NavLink[] = [
   { to: "/", label: "Home" },
   { to: "/blog", label: "Blog" },
   { to: "/tools", label: "Tools" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
-] as const;
+];
 
 export default function Navbar({ transparentOverHero: _ = false }: { transparentOverHero?: boolean }) {
+  const nav = useSettingsGroup<NavbarSettings>("navbar");
+  const site = useSettingsGroup<SiteSettings>("site");
+  const general = useSettingsGroup<SiteSettings>("general");
+
+  const links: NavLink[] = Array.isArray(nav.links) && nav.links.length ? nav.links : DEFAULT_LINKS;
+  const title = site.title || site.site_title || general.site_title || "ThriftBeam";
+
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -34,6 +46,45 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const renderLink = (l: NavLink, opts: { mobile?: boolean } = {}) => {
+    const className = opts.mobile
+      ? "py-4 text-2xl font-semibold border-b border-border"
+      : "px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground transition-colors";
+    if (l.href && !l.to) {
+      return (
+        <a key={l.label} href={l.href} className={className} onClick={() => opts.mobile && setOpen(false)}>
+          {l.label}
+        </a>
+      );
+    }
+    return (
+      <Link
+        key={l.label}
+        to={l.to || "/"}
+        onClick={() => opts.mobile && setOpen(false)}
+        className={className}
+        activeProps={{ className: opts.mobile ? `${className} text-primary` : "text-primary" }}
+        activeOptions={{ exact: (l.to || "/") === "/" }}
+      >
+        {l.label}
+      </Link>
+    );
+  };
+
+  const renderTitle = () => {
+    // Allow "Thrift|Beam" style two-tone via pipe character.
+    if (title.includes("|")) {
+      const [a, b] = title.split("|");
+      return (
+        <>
+          <span className="text-foreground">{a}</span>
+          <span className="text-primary">{b}</span>
+        </>
+      );
+    }
+    return <span className="text-foreground">{title}</span>;
+  };
+
   return (
     <>
       <header
@@ -42,23 +93,12 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
         }`}
       >
         <div className="container-page flex h-16 items-center justify-between gap-4 lg:justify-start">
-          <Link to="/" className="flex items-center gap-1 font-bold text-xl tracking-tight" aria-label="ThriftBeam home">
-            <span className="text-foreground">Thrift</span>
-            <span className="text-primary">Beam</span>
+          <Link to="/" className="flex items-center gap-1 font-bold text-xl tracking-tight" aria-label={`${title} home`}>
+            {renderTitle()}
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 lg:mx-auto">
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className="px-3 py-2 rounded-md text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
-                activeProps={{ className: "text-primary" }}
-                activeOptions={{ exact: l.to === "/" }}
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) => renderLink(l))}
           </nav>
 
           <div className="flex items-center gap-1 lg:ml-auto">
@@ -82,12 +122,11 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
         </div>
       </header>
 
-      {/* Mobile menu */}
       {open && (
         <div className="fixed inset-0 z-50 md:hidden bg-background animate-in fade-in duration-200">
           <div className="container-page flex h-16 items-center justify-between">
             <Link to="/" onClick={() => setOpen(false)} className="font-bold text-xl">
-              <span className="text-foreground">Thrift</span><span className="text-primary">Beam</span>
+              {renderTitle()}
             </Link>
             <button
               type="button"
@@ -99,18 +138,7 @@ export default function Navbar({ transparentOverHero: _ = false }: { transparent
             </button>
           </div>
           <nav className="container-page flex flex-col gap-1 pt-6">
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                className="py-4 text-2xl font-semibold border-b border-border"
-                activeProps={{ className: "text-primary" }}
-                activeOptions={{ exact: l.to === "/" }}
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) => renderLink(l, { mobile: true }))}
           </nav>
         </div>
       )}
