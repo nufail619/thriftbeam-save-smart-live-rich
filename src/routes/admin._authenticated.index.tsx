@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -11,113 +11,110 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { FileText, Eye, Users, MessageSquare, ExternalLink, AlertTriangle } from "lucide-react";
+import { FileText, Eye, Users, MessageSquare, AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import StatCard from "@/components/admin/StatCard";
-import AdminBadge from "@/components/admin/Badge";
-import DataTable, { type Column } from "@/components/admin/DataTable";
-import {
-  mockCategoryViews,
-  mockDashboardStats,
-  mockPendingComments,
-  mockRecentPosts,
-  mockVisitors30d,
-  type AdminPost,
-  type PendingComment,
-} from "@/lib/mockAdminData";
-import { dashboardApi, asStat, type DashboardData } from "@/lib/api/dashboard";
+import { dashboardApi } from "@/lib/api/dashboard";
+import { cacheApi } from "@/lib/api/siteSettings";
 
 export const Route = createFileRoute("/admin/_authenticated/")({
   component: DashboardPage,
 });
 
 function DashboardPage() {
+  const qc = useQueryClient();
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["admin", "dashboard"],
+    queryKey: ["dashboard"],
     queryFn: () => dashboardApi.get(),
+    staleTime: 0,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
-  const d: DashboardData = data ?? {};
-  const stats = {
-    totalPosts: asStat(d.totalPosts ?? mockDashboardStats.totalPosts.value),
-    totalViews: asStat(d.totalViews ?? mockDashboardStats.totalViews.value),
-    subscribers: asStat(d.subscribers ?? mockDashboardStats.subscribers.value),
-    commentsPending: asStat(d.commentsPending ?? mockDashboardStats.commentsPending.value),
-  };
-  const visitors = d.visitors30d?.length ? d.visitors30d : mockVisitors30d;
-  const categories = d.categoryViews?.length ? d.categoryViews : mockCategoryViews;
-  const recent = (d.recentPosts as AdminPost[] | undefined) ?? mockRecentPosts;
-  const pending = (d.pendingComments as PendingComment[] | undefined) ?? mockPendingComments;
+  const clearMut = useMutation({
+    mutationFn: () => cacheApi.clear(),
+    onSuccess: () => {
+      qc.clear();
+      toast.success("Site cache cleared. All visitors will see fresh content.");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
 
-  const columns: Column<AdminPost>[] = [
-    {
-      key: "title",
-      header: "Title",
-      render: (r) => (
-        <div className="flex items-center gap-3 min-w-0">
-          <img src={r.thumbnail} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />
-          <span className="truncate text-sm font-medium">{r.title}</span>
-        </div>
-      ),
-    },
-    { key: "category", header: "Category", render: (r) => <span className="text-sm text-muted-foreground">{r.category}</span> },
-    { key: "status", header: "Status", render: (r) => <AdminBadge variant={r.status} /> },
-    {
-      key: "date",
-      header: "Date",
-      render: (r) => <span className="text-sm text-muted-foreground">{new Date(r.date).toLocaleDateString()}</span>,
-    },
-    {
-      key: "actions",
-      header: "",
-      render: () => (
-        <div className="flex justify-end gap-2">
-          <button onClick={() => toast("Open the Posts page to edit")} className="text-xs font-semibold text-primary hover:underline">Edit</button>
-          <button onClick={() => toast("Preview coming soon")} className="text-xs font-semibold text-muted-foreground hover:underline">View</button>
-        </div>
-      ),
-      className: "text-right",
-    },
-  ];
+  const stats = data?.stats ?? {};
+  const visitors = data?.visitors_30d ?? [];
+  const cats = data?.top_categories ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recent = (data?.recent_posts ?? []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pending = (data?.pending_comments ?? []) as any[];
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Live data from api.thriftbeam.com — auto-refreshes every 30s.</p>
+        <button
+          onClick={() => clearMut.mutate()}
+          disabled={clearMut.isPending}
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold hover:bg-muted disabled:opacity-60"
+        >
+          {clearMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          Clear site cache
+        </button>
+      </div>
+
       {isError && (
         <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Failed to load dashboard: {(error as Error)?.message}. Showing fallback.</span>
+          <span>Failed to load dashboard: {(error as Error)?.message}</span>
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Posts" value={stats.totalPosts.value} delta={stats.totalPosts.delta} icon={FileText} />
-        <StatCard label="Total Views" value={stats.totalViews.value} delta={stats.totalViews.delta} icon={Eye} />
-        <StatCard label="Subscribers" value={stats.subscribers.value} delta={stats.subscribers.delta} icon={Users} />
-        <StatCard label="Comments Pending" value={stats.commentsPending.value} delta={stats.commentsPending.delta} icon={MessageSquare} />
-      </div>
+
+      {isLoading && !data ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard label="Total Posts" value={Number(stats.total_posts ?? 0)} icon={FileText} />
+          <StatCard label="Total Views" value={Number(stats.total_views ?? 0)} icon={Eye} />
+          <StatCard label="Subscribers" value={Number(stats.total_subscribers ?? 0)} icon={Users} />
+          <StatCard label="Pending Comments" value={Number(stats.pending_comments ?? 0)} icon={MessageSquare} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Visitors — last 30 days">
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={visitors} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="date" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
-              <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-              <Line type="monotone" dataKey="visitors" stroke="#2563EB" strokeWidth={2.5} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          {visitors.length === 0 ? (
+            <EmptyChart />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={visitors} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="date" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
+                <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
+                <Line type="monotone" dataKey="count" stroke="#2563EB" strokeWidth={2.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
 
         <ChartCard title="Top categories by views">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={categories} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="category" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={50} />
-              <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
-              <Bar dataKey="views" fill="#2563EB" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {cats.length === 0 ? (
+            <EmptyChart />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={cats} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="name" stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} interval={0} angle={-12} textAnchor="end" height={50} />
+                <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--color-border)" }} />
+                <Bar dataKey="views" fill="#2563EB" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
 
@@ -127,7 +124,20 @@ function DashboardPage() {
             <h2 className="text-base font-semibold">Recent posts</h2>
             <a href="/admin/posts" className="text-xs font-semibold text-primary hover:underline">View all →</a>
           </div>
-          <DataTable rows={recent} columns={columns} rowKey={(r) => r.id} pageSize={5} />
+          {recent.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No posts yet. Click "New Post" to create your first article.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {recent.slice(0, 5).map((p, i) => (
+                <li key={p.id ?? p.slug ?? i} className="rounded-xl border border-border bg-card p-3 text-sm">
+                  <p className="font-medium truncate">{p.title ?? "(untitled)"}</p>
+                  <p className="text-xs text-muted-foreground">{p.status ?? ""} · {p.published_at ?? p.date ?? ""}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -135,11 +145,18 @@ function DashboardPage() {
             <h2 className="text-base font-semibold">Pending comments</h2>
             <a href="/admin/comments" className="text-xs font-semibold text-primary hover:underline">View all →</a>
           </div>
-          <ul className="space-y-3">
-            {pending.map((c) => (
-              <PendingItem key={c.id} c={c} />
-            ))}
-          </ul>
+          {pending.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No pending comments.</p>
+          ) : (
+            <ul className="space-y-3">
+              {pending.slice(0, 5).map((c, i) => (
+                <li key={c.id ?? i} className="rounded-2xl border border-border bg-card p-4 text-sm">
+                  <p className="font-semibold">{c.author ?? c.name ?? "Anonymous"}</p>
+                  <p className="mt-1 text-muted-foreground line-clamp-2">{c.body ?? c.content ?? c.excerpt ?? ""}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
@@ -155,45 +172,6 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function PendingItem({ c }: { c: PendingComment }) {
-  const initials = c.author.split(" ").map((s) => s[0]).slice(0, 2).join("");
-  return (
-    <li className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-          {initials}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold">{c.author}</p>
-            <AdminBadge variant="pending" />
-          </div>
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.excerpt}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            on <span className="font-medium">{c.postTitle}</span>
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => toast.success(`Approved comment from ${c.author}`)}
-              className="h-8 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => toast(`Rejected comment from ${c.author}`)}
-              className="h-8 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted"
-            >
-              Reject
-            </button>
-            <a
-              href="#"
-              className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              View <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        </div>
-      </div>
-    </li>
-  );
+function EmptyChart() {
+  return <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">No data yet</div>;
 }

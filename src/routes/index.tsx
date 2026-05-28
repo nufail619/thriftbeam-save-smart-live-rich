@@ -1,11 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Calculator, Users, Star, Loader2 } from "lucide-react";
-import { categories, authors, getAuthor } from "@/lib/mockData";
+import { categories } from "@/lib/mockData";
 import { publicPostsApi } from "@/lib/api/publicPosts";
 import CategoryCard from "@/components/CategoryCard";
 import PostCard from "@/components/PostCard";
 import NewsletterSignup from "@/components/NewsletterSignup";
+import { useSettingsGroup } from "@/context/SettingsContext";
+
+type HeroSettings = {
+  badge?: string;
+  title?: string;
+  title_accent?: string;
+  subtitle?: string;
+  cta_text?: string;
+  cta_url?: string;
+  secondary_cta_text?: string;
+  secondary_cta_url?: string;
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,48 +34,51 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const hero = useSettingsGroup<HeroSettings>("hero");
+
   const { data, isLoading } = useQuery({
     queryKey: ["public", "latest", 6],
     queryFn: () => publicPostsApi.latest(6),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   const latest = data ?? [];
   const featured = latest.slice(0, 3);
-  const featuredAuthors = featured.length
-    ? featured.map((p) => getAuthor(p.authorSlug)).filter(Boolean)
-    : authors.slice(0, 3);
+
+  const heroTitle = hero.title || "Save Smart.";
+  const heroAccent = hero.title_accent || "Live Rich.";
+  const heroSub = hero.subtitle || "Your trusted guide to budgeting, saving, and building wealth — one smart decision at a time.";
+  const ctaText = hero.cta_text || "Read the Blog";
+  const ctaUrl = hero.cta_url || "/blog";
+  const ctaText2 = hero.secondary_cta_text || "Try Calculators";
+  const ctaUrl2 = hero.secondary_cta_url || "/tools";
+  const badge = hero.badge || "Independent. Reader-supported. No hype.";
 
   return (
     <>
-      {/* Hero */}
       <section className="hero-mesh relative overflow-hidden">
         <div className="container-page pt-12 md:pt-20 pb-20 md:pb-28 relative">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/70 backdrop-blur text-xs font-medium border border-border text-foreground">
               <Star className="h-3 w-3 fill-accent text-accent" />
-              Independent. Reader-supported. No hype.
+              {badge}
             </span>
             <h1 className="mt-5 text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-foreground">
-              Save Smart.{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Live Rich.</span>
+              {heroTitle}{" "}
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{heroAccent}</span>
             </h1>
-            <p className="mt-5 text-lg md:text-xl text-muted-foreground max-w-2xl">
-              Your trusted guide to budgeting, saving, and building wealth — one smart decision at a time.
-            </p>
+            <p className="mt-5 text-lg md:text-xl text-muted-foreground max-w-2xl">{heroSub}</p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <Link to="/blog" className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                Read the Blog <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link to="/tools" className="h-12 px-6 rounded-xl bg-background border-2 border-primary text-primary font-semibold inline-flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors">
-                <Calculator className="h-4 w-4" /> Try Calculators
-              </Link>
+              <a href={ctaUrl} className="h-12 px-6 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                {ctaText} <ArrowRight className="h-4 w-4" />
+              </a>
+              <a href={ctaUrl2} className="h-12 px-6 rounded-xl bg-background border-2 border-primary text-primary font-semibold inline-flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors">
+                <Calculator className="h-4 w-4" /> {ctaText2}
+              </a>
             </div>
             <div className="mt-8 flex items-center gap-3">
-              <div className="flex -space-x-2">
-                {featuredAuthors.map((a) => a && (
-                  <img key={a.slug} src={a.avatar} alt="" loading="lazy" width={36} height={36} className="h-9 w-9 rounded-full border-2 border-background object-cover" />
-                ))}
-              </div>
               <div className="text-sm text-muted-foreground inline-flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
                 Trusted by <strong className="text-foreground">10,000+</strong> readers
@@ -73,7 +88,6 @@ function Home() {
         </div>
       </section>
 
-      {/* Categories */}
       <section className="section-pad bg-surface">
         <div className="container-page">
           <div className="max-w-2xl">
@@ -86,30 +100,32 @@ function Home() {
         </div>
       </section>
 
-      {/* Featured */}
-      <section className="section-pad bg-background">
-        <div className="container-page">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold">Featured posts</h2>
-              <p className="mt-2 text-muted-foreground">The most-loved guides from our editors this month.</p>
+      {featured.length > 0 && (
+        <section className="section-pad bg-background">
+          <div className="container-page">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold">Featured posts</h2>
+                <p className="mt-2 text-muted-foreground">The most-loved guides from our editors this month.</p>
+              </div>
+              <Link to="/blog" className="hidden sm:inline-flex items-center gap-1 text-primary font-semibold hover:gap-2 transition-all">
+                View all <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-            <Link to="/blog" className="hidden sm:inline-flex items-center gap-1 text-primary font-semibold hover:gap-2 transition-all">
-              View all <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="mt-8 grid gap-6 lg:grid-cols-3">
+              {featured.map((p) => <PostCard key={p.slug} post={p} size="large" />)}
+            </div>
           </div>
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            {featured.map((p) => <PostCard key={p.slug} post={p} size="large" />)}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* Latest */}
       <section className="section-pad bg-surface">
         <div className="container-page">
           <h2 className="text-3xl md:text-4xl font-bold">Latest articles</h2>
           {isLoading && !data ? (
             <div className="mt-8 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading latest posts…</div>
+          ) : latest.length === 0 ? (
+            <p className="mt-8 text-muted-foreground">No articles published yet — check back soon.</p>
           ) : (
             <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {latest.map((p) => <PostCard key={p.slug} post={p} />)}
@@ -123,7 +139,6 @@ function Home() {
         </div>
       </section>
 
-      {/* Tools teaser — light */}
       <section className="section-pad bg-background">
         <div className="container-page">
           <div className="rounded-2xl bg-surface border border-border border-l-4 border-l-primary p-6 md:p-10 grid gap-8 md:grid-cols-2 items-center shadow-[var(--shadow-card)]">

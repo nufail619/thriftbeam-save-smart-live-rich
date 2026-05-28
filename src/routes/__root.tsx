@@ -16,6 +16,9 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import CookieConsent from "@/components/CookieConsent";
+import AnalyticsScripts from "@/components/AnalyticsScripts";
+import MaintenanceWrapper from "@/components/MaintenanceWrapper";
+import { SettingsProvider } from "@/context/SettingsContext";
 
 
 function NotFoundComponent() {
@@ -152,28 +155,35 @@ function RootComponent() {
   if (isAdmin) {
     return (
       <QueryClientProvider client={queryClient}>
-        <Outlet />
-        <Toaster richColors position="top-right" />
+        <SettingsProvider>
+          <Outlet />
+          <Toaster richColors position="top-right" />
+        </SettingsProvider>
       </QueryClientProvider>
     );
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      >
-        Skip to content
-      </a>
-      <AnnouncementBar />
-      <Navbar transparentOverHero={transparent} />
-      <main id="main" className="min-h-[60vh]">
-        <Outlet />
-      </main>
-      <Footer />
-      <CookieConsent />
-      <Toaster richColors position="top-right" />
+      <SettingsProvider>
+        <AnalyticsScripts />
+        <MaintenanceWrapper>
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            Skip to content
+          </a>
+          <AnnouncementBar />
+          <Navbar transparentOverHero={transparent} />
+          <main id="main" className="min-h-[60vh]">
+            <Outlet />
+          </main>
+          <Footer />
+          <CookieConsent />
+        </MaintenanceWrapper>
+        <Toaster richColors position="top-right" />
+      </SettingsProvider>
     </QueryClientProvider>
   );
 }

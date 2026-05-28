@@ -1,22 +1,44 @@
 import { useEffect, useState } from "react";
 import { X, Sparkles } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { useSettingsGroup } from "@/context/SettingsContext";
+
+type AnnouncementSettings = {
+  enabled?: boolean;
+  text?: string;
+  link?: string;
+  link_label?: string;
+  background?: string;
+  textColor?: string;
+  text_color?: string;
+};
 
 export default function AnnouncementBar() {
+  const a = useSettingsGroup<AnnouncementSettings>("announcement");
   const [show, setShow] = useState(false);
+
   useEffect(() => {
     if (sessionStorage.getItem("tb_announce_dismissed") !== "1") setShow(true);
   }, []);
-  if (!show) return null;
+
+  if (!show || !a.enabled || !a.text) return null;
+
+  const bg = a.background || "var(--primary)";
+  const fg = a.textColor || a.text_color || "var(--primary-foreground)";
+
   return (
-    <div className="bg-primary text-primary-foreground text-sm">
+    <div className="text-sm" style={{ background: bg, color: fg }}>
       <div className="container-page flex items-center justify-center gap-3 py-2 relative">
         <Sparkles className="h-4 w-4 hidden sm:block" />
         <p className="text-center">
-          🎉 New: Budget Calculator just launched —{" "}
-          <Link to="/tools/$slug" params={{ slug: "budget-calculator" }} className="underline font-semibold">
-            try it free
-          </Link>
+          {a.text}
+          {a.link && (
+            <>
+              {" "}
+              <a href={a.link} className="underline font-semibold">
+                {a.link_label || "Learn more"}
+              </a>
+            </>
+          )}
         </p>
         <button
           aria-label="Dismiss"
