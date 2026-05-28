@@ -1,24 +1,33 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Power, CheckCircle2, XCircle } from "lucide-react";
-import { toast } from "sonner";
-import { useSettings, settingsApi } from "@/lib/adminStore";
+import { Power, Loader2 } from "lucide-react";
+import { useSettingsForm } from "@/hooks/useSettingsForm";
 
 export const Route = createFileRoute("/admin/_authenticated/maintenance")({
   component: MaintenancePage,
 });
 
-const DIAGNOSTICS = [
-  { id: "db", label: "Database connection", pass: true },
-  { id: "cache", label: "Cache layer", pass: true },
-  { id: "mail", label: "Mail provider", pass: true },
-  { id: "storage", label: "Object storage", pass: true },
-  { id: "ssl", label: "SSL certificate", pass: true },
-];
+type MaintenanceDraft = {
+  enabled: boolean;
+  title: string;
+  message: string;
+  retry_after: number;
+  scheduled_end: string;
+  allowed_ips: string;
+};
 
 function MaintenancePage() {
-  const m = useSettings().maintenance;
-  const [diag, setDiag] = useState<null | typeof DIAGNOSTICS>(null);
+  const { draft, set, save, saving, isLoading } = useSettingsForm<MaintenanceDraft>("maintenance", {
+    enabled: false,
+    title: "We'll be right back",
+    message: "<p>ThriftBeam is undergoing scheduled maintenance.</p>",
+    retry_after: 3600,
+    scheduled_end: "",
+    allowed_ips: "",
+  });
+
+  if (isLoading) {
+    return <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…</div>;
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -28,46 +37,29 @@ function MaintenancePage() {
             <p className="font-semibold inline-flex items-center gap-2"><Power className="h-4 w-4" /> Maintenance mode</p>
             <p className="text-xs text-muted-foreground">Show a maintenance page to all visitors.</p>
           </div>
-          <input type="checkbox" checked={m.enabled} onChange={(e) => { settingsApi.update("maintenance", { enabled: e.target.checked }); toast.success(e.target.checked ? "Maintenance on" : "Maintenance off"); }} />
+          <input type="checkbox" checked={draft.enabled} onChange={(e) => set("enabled", e.target.checked)} />
         </label>
 
-        <Field label="Title"><input className="input" value={m.title} onChange={(e) => settingsApi.update("maintenance", { title: e.target.value })} /></Field>
-        <Field label="Message (HTML)"><textarea rows={4} className="input min-h-[100px] py-2" value={m.message} onChange={(e) => settingsApi.update("maintenance", { message: e.target.value })} /></Field>
+        <Field label="Title"><input className="input" value={draft.title} onChange={(e) => set("title", e.target.value)} /></Field>
+        <Field label="Message (HTML)"><textarea rows={4} className="input min-h-[100px] py-2" value={draft.message} onChange={(e) => set("message", e.target.value)} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Retry-after (s)"><input type="number" className="input" value={m.retryAfter} onChange={(e) => settingsApi.update("maintenance", { retryAfter: Number(e.target.value) })} /></Field>
-          <Field label="Scheduled end"><input type="datetime-local" className="input" value={m.scheduledEnd} onChange={(e) => settingsApi.update("maintenance", { scheduledEnd: e.target.value })} /></Field>
+          <Field label="Retry-after (s)"><input type="number" className="input" value={draft.retry_after} onChange={(e) => set("retry_after", Number(e.target.value))} /></Field>
+          <Field label="Scheduled end"><input type="datetime-local" className="input" value={draft.scheduled_end} onChange={(e) => set("scheduled_end", e.target.value)} /></Field>
         </div>
-        <Field label="Allowed IPs (one per line)"><textarea rows={3} className="input min-h-[80px] py-2 font-mono" value={m.allowedIps} onChange={(e) => settingsApi.update("maintenance", { allowedIps: e.target.value })} placeholder="203.0.113.7" /></Field>
+        <Field label="Allowed IPs (one per line)"><textarea rows={3} className="input min-h-[80px] py-2 font-mono" value={draft.allowed_ips} onChange={(e) => set("allowed_ips", e.target.value)} placeholder="203.0.113.7" /></Field>
 
         <div className="flex justify-end pt-2">
-          <button onClick={() => toast.success("Settings saved")} className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">Save</button>
+          <button disabled={saving} onClick={save} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
+          </button>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="mb-3 text-base font-semibold">Preview</h2>
-          <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
-            <h3 className="text-2xl font-bold">{m.title}</h3>
-            <div className="mt-3 text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: m.message }} />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Diagnostics</h2>
-            <button onClick={() => { setDiag(null); setTimeout(() => setDiag(DIAGNOSTICS), 600); toast.success("Diagnostics complete"); }} className="h-9 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted">Run</button>
-          </div>
-          {diag && (
-            <ul className="mt-3 space-y-2">
-              {diag.map((d) => (
-                <li key={d.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-                  <span>{d.label}</span>
-                  {d.pass ? <CheckCircle2 className="h-5 w-5 text-[color:var(--success)]" /> : <XCircle className="h-5 w-5 text-destructive" />}
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h2 className="mb-3 text-base font-semibold">Preview</h2>
+        <div className="rounded-xl border border-border bg-muted/30 p-8 text-center">
+          <h3 className="text-2xl font-bold">{draft.title}</h3>
+          <div className="mt-3 text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: draft.message }} />
         </div>
       </div>
 

@@ -1,58 +1,73 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Smartphone, Send } from "lucide-react";
-import { toast } from "sonner";
-import StatCard from "@/components/admin/StatCard";
-import { useSettings, settingsApi } from "@/lib/adminStore";
+import { Loader2 } from "lucide-react";
+import { useSettingsForm } from "@/hooks/useSettingsForm";
 
 export const Route = createFileRoute("/admin/_authenticated/pwa")({
   component: PwaPage,
 });
 
+type PwaDraft = {
+  service_worker: boolean;
+  cache_strategy: "networkFirst" | "cacheFirst" | "staleWhileRevalidate";
+  name: string;
+  short_name: string;
+  description: string;
+  theme_color: string;
+  background_color: string;
+  display: "standalone" | "fullscreen" | "minimal-ui" | "browser";
+};
+
 function PwaPage() {
-  const p = useSettings().pwa;
-  const [title, setTitle] = useState("Hello from ThriftBeam");
-  const [body, setBody] = useState("New post just published.");
-  const [url, setUrl] = useState("/blog");
+  const { draft, set, save, saving, isLoading } = useSettingsForm<PwaDraft>("pwa", {
+    service_worker: true,
+    cache_strategy: "networkFirst",
+    name: "ThriftBeam",
+    short_name: "ThriftBeam",
+    description: "Smarter money, every week.",
+    theme_color: "#2563EB",
+    background_color: "#ffffff",
+    display: "standalone",
+  });
+
+  if (isLoading) {
+    return <div className="flex h-40 items-center justify-center text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard label="Push subscribers" value={p.pushSubscribers} icon={Smartphone} />
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="mb-3 text-base font-semibold">Service worker</h3>
-          <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
-            <span className="text-sm font-medium">Enable service worker</span>
-            <input type="checkbox" checked={p.serviceWorker} onChange={(e) => settingsApi.update("pwa", { serviceWorker: e.target.checked })} />
-          </label>
-          <div className="mt-3">
-            <Field label="Cache strategy">
-              <select className="input" value={p.cacheStrategy} onChange={(e) => settingsApi.update("pwa", { cacheStrategy: e.target.value as typeof p.cacheStrategy })}>
-                <option value="networkFirst">Network first</option>
-                <option value="cacheFirst">Cache first</option>
-                <option value="staleWhileRevalidate">Stale while revalidate</option>
-              </select>
-            </Field>
-          </div>
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="mb-3 text-base font-semibold">Service worker</h3>
+        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border p-3">
+          <span className="text-sm font-medium">Enable service worker</span>
+          <input type="checkbox" checked={draft.service_worker} onChange={(e) => set("service_worker", e.target.checked)} />
+        </label>
+        <div className="mt-3">
+          <Field label="Cache strategy">
+            <select className="input" value={draft.cache_strategy} onChange={(e) => set("cache_strategy", e.target.value as PwaDraft["cache_strategy"])}>
+              <option value="networkFirst">Network first</option>
+              <option value="cacheFirst">Cache first</option>
+              <option value="staleWhileRevalidate">Stale while revalidate</option>
+            </select>
+          </Field>
         </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
         <h2 className="text-base font-semibold">Manifest</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="App name"><input className="input" value={p.name} onChange={(e) => settingsApi.update("pwa", { name: e.target.value })} /></Field>
-          <Field label="Short name"><input className="input" value={p.shortName} onChange={(e) => settingsApi.update("pwa", { shortName: e.target.value })} /></Field>
+          <Field label="App name"><input className="input" value={draft.name} onChange={(e) => set("name", e.target.value)} /></Field>
+          <Field label="Short name"><input className="input" value={draft.short_name} onChange={(e) => set("short_name", e.target.value)} /></Field>
         </div>
-        <Field label="Description"><input className="input" value={p.description} onChange={(e) => settingsApi.update("pwa", { description: e.target.value })} /></Field>
+        <Field label="Description"><input className="input" value={draft.description} onChange={(e) => set("description", e.target.value)} /></Field>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Theme color">
-            <input type="color" value={p.themeColor} onChange={(e) => settingsApi.update("pwa", { themeColor: e.target.value })} className="input h-10 w-full" />
+            <input type="color" value={draft.theme_color} onChange={(e) => set("theme_color", e.target.value)} className="input h-10 w-full" />
           </Field>
           <Field label="Background">
-            <input type="color" value={p.backgroundColor} onChange={(e) => settingsApi.update("pwa", { backgroundColor: e.target.value })} className="input h-10 w-full" />
+            <input type="color" value={draft.background_color} onChange={(e) => set("background_color", e.target.value)} className="input h-10 w-full" />
           </Field>
           <Field label="Display">
-            <select className="input" value={p.display} onChange={(e) => settingsApi.update("pwa", { display: e.target.value as typeof p.display })}>
+            <select className="input" value={draft.display} onChange={(e) => set("display", e.target.value as PwaDraft["display"])}>
               <option value="standalone">Standalone</option>
               <option value="fullscreen">Fullscreen</option>
               <option value="minimal-ui">Minimal UI</option>
@@ -61,18 +76,8 @@ function PwaPage() {
           </Field>
         </div>
         <div className="flex justify-end pt-2">
-          <button onClick={() => toast.success("Manifest saved")} className="h-10 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">Save</button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
-        <h2 className="text-base font-semibold">Send test push</h2>
-        <Field label="Title"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-        <Field label="Body"><input className="input" value={body} onChange={(e) => setBody(e.target.value)} /></Field>
-        <Field label="URL"><input className="input" value={url} onChange={(e) => setUrl(e.target.value)} /></Field>
-        <div className="flex justify-end pt-2">
-          <button onClick={() => toast.success("Test push sent")} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">
-            <Send className="h-4 w-4" /> Send
+          <button disabled={saving} onClick={save} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
           </button>
         </div>
       </div>
