@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import LegalLayout from "@/components/LegalLayout";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { publicPagesApi } from "@/lib/api/publicPages";
 
 export const Route = createFileRoute("/disclaimer")({
   head: () => ({
@@ -16,26 +19,31 @@ export const Route = createFileRoute("/disclaimer")({
 });
 
 function DisclaimerPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["page", "disclaimer"],
+    queryFn: () => publicPagesApi.bySlug("disclaimer"),
+    staleTime: 60_000,
+  });
+
   return (
-    <LegalLayout
-      title="Disclaimer"
-      breadcrumbLabel="Disclaimer"
-      updated="January 1, 2025"
-      intro="Important context about what ThriftBeam is — and what it isn't."
-      sections={[
-        { id: "editorial", title: "Editorial independence", body: <>
-          <p>ThriftBeam's editorial team chooses every topic. No advertiser, affiliate partner or sponsor has any input on what we publish, the conclusions we reach, or the products we recommend. If a relationship would create a conflict of interest, we either disclose it prominently or decline the partnership.</p>
-        </>},
-        { id: "affiliate", title: "Affiliate disclosure", body: <>
-          <p>Some links on ThriftBeam are affiliate links — we earn a small commission if you sign up or purchase, at no extra cost to you. Commissions never influence which products we recommend or how we rank them. We only link to products we'd recommend to a friend.</p>
-        </>},
-        { id: "not-advice", title: "Not financial advice", body: <>
-          <p>ThriftBeam publishes educational content for a general audience. We're not licensed financial advisors, accountants or tax professionals, and nothing on this site should be treated as personal financial, investment, tax or legal advice. For decisions tied to your specific situation, please speak with a qualified professional.</p>
-        </>},
-        { id: "accuracy", title: "Accuracy disclaimer", body: <>
-          <p>We work hard to keep articles accurate and up to date, but rates, terms, products and tax rules change frequently. Always verify current details on the official source before acting. If you spot something out of date, please email us — corrections get fast-tracked.</p>
-        </>},
-      ]}
-    />
+    <div className="container-page py-10 md:py-16">
+      <Breadcrumbs items={[{ label: "Home", to: "/" }, { label: "Disclaimer" }]} />
+      <header className="mt-6 max-w-3xl">
+        <h1 className="text-3xl md:text-5xl font-bold">{data?.title || "Disclaimer"}</h1>
+      </header>
+
+      <div className="mt-10 max-w-3xl">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : (
+          <article
+            className="prose prose-neutral dark:prose-invert max-w-none prose-tb"
+            dangerouslySetInnerHTML={{ __html: data?.content ?? "" }}
+          />
+        )}
+      </div>
+    </div>
   );
 }
