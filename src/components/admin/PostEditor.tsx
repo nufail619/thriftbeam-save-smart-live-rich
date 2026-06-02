@@ -8,7 +8,8 @@ import SeoPanel from "./SeoPanel";
 import TagInput from "./TagInput";
 import MediaPickerModal from "./MediaPickerModal";
 import { postsApi } from "@/lib/api/posts";
-import { AUTHORS, CATEGORIES, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
+import { cacheApi } from "@/lib/api/siteSettings";
+import { CATEGORIES, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
 
 type Mode = "new" | "edit";
 
@@ -19,7 +20,7 @@ export function slugify(s: string) {
 const blankPost: Omit<AdminPost, "id"> = {
   title: "",
   slug: "",
-  author: AUTHORS[0],
+  author: "ThriftBeam Team",
   category: CATEGORIES[0],
   status: "draft",
   views: 0,
@@ -71,6 +72,18 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
   });
   const saving = createMut.isPending || updateMut.isPending;
 
+  const invalidateAll = async () => {
+    qc.invalidateQueries({ queryKey: ["posts"] });
+    qc.invalidateQueries({ queryKey: ["homepage"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["public-posts"] });
+    try {
+      await cacheApi.clear();
+    } catch {
+      // non-fatal
+    }
+  };
+
   const save = async (status: AdminPostStatus) => {
     if (!(post.title ?? "").trim()) {
       toast.error("Title is required");
@@ -80,20 +93,20 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
     try {
       if (mode === "new") {
         const created = await createMut.mutateAsync(payload);
-        qc.invalidateQueries({ queryKey: ["posts"] });
         if (!created?.id) {
           toast.error("Server did not return a post id");
           return;
         }
         qc.setQueryData(["posts", created.id], created);
-        toast.success(status === "published" ? "Post published" : "Draft saved");
+        await invalidateAll();
+        toast.success(status === "published" ? "Published! Live on site in 5 seconds." : "Draft saved");
         navigate({ to: "/admin/posts/$id/edit", params: { id: created.id } });
       } else {
         const id = (initial as AdminPost).id;
         const updated = await updateMut.mutateAsync({ id, payload });
         qc.setQueryData(["posts", id], updated);
-        qc.invalidateQueries({ queryKey: ["posts"] });
-        toast.success(status === "published" ? "Post published" : "Saved");
+        await invalidateAll();
+        toast.success(status === "published" ? "Published! Live on site in 5 seconds." : "Saved");
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -147,138 +160,3 @@ export default function PostEditor({ mode, initial }: { mode: Mode; initial?: Ad
         <div className="space-y-4">
           <input
             value={post.title}
-            onChange={(e) => update({ title: e.target.value })}
-            placeholder="Post title"
-            className="h-14 w-full rounded-xl border border-border bg-card px-4 text-2xl font-bold outline-none focus:ring-2 focus:ring-primary/40"
-          />
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-            <span className="text-xs text-muted-foreground">/blog/</span>
-            <input
-              value={post.slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                update({ slug: slugify(e.target.value) });
-              }}
-              placeholder="post-slug"
-              className="h-7 w-full bg-transparent text-sm outline-none"
-            />
-          </div>
-          <RichEditor value={post.content} onChange={(html) => update({ content: html })} />
-          <label className="block">
-            <span className="text-sm font-medium">Excerpt</span>
-            <textarea
-              value={post.excerpt}
-              onChange={(e) => update({ excerpt: e.target.value })}
-              rows={3}
-              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="Short summary used in cards and SEO previews"
-            />
-          </label>
-        </div>
-
-        <aside className="space-y-4">
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold">Publish</h2>
-            <div className="mt-3 space-y-3 text-sm">
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Status</span>
-                <select
-                  value={post.status}
-                  onChange={(e) => update({ status: e.target.value as AdminPostStatus })}
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="scheduled">Scheduled</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Date</span>
-                <input
-                  type="date"
-                  value={post.date}
-                  onChange={(e) => update({ date: e.target.value })}
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold">Taxonomy</h2>
-            <div className="mt-3 space-y-3 text-sm">
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Author</span>
-                <select
-                  value={post.author}
-                  onChange={(e) => update({ author: e.target.value })}
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  {AUTHORS.map((a) => <option key={a}>{a}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Category</span>
-                <select
-                  value={post.category}
-                  onChange={(e) => update({ category: e.target.value })}
-                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </label>
-              <div>
-                <span className="text-xs font-medium text-muted-foreground">Tags</span>
-                <div className="mt-1">
-                  <TagInput tags={post.tags} onChange={(tags) => update({ tags })} />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold">Featured image</h2>
-            {post.featuredImage ? (
-              <div className="relative mt-3 overflow-hidden rounded-lg">
-                <img src={post.featuredImage} alt="" className="aspect-video w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => update({ featuredImage: "", thumbnail: "" })}
-                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground/80 text-background"
-                  aria-label="Remove featured image"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="mt-3 flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary"
-              >
-                <ImageIcon className="h-6 w-6" />
-                Choose image
-              </button>
-            )}
-          </section>
-
-          <SeoPanel
-            title={post.seoTitle}
-            description={post.seoDescription}
-            slug={post.slug}
-            onChange={update}
-          />
-        </aside>
-      </div>
-
-      <MediaPickerModal
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        onSelect={(it) => {
-          update({ featuredImage: it.url, thumbnail: it.url });
-          setPickerOpen(false);
-        }}
-      />
-    </div>
-  );
-}
