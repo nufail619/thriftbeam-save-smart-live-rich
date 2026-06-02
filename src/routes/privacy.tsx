@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import LegalLayout from "@/components/LegalLayout";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { publicPagesApi } from "@/lib/api/publicPages";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -16,32 +19,31 @@ export const Route = createFileRoute("/privacy")({
 });
 
 function PrivacyPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["page", "privacy-policy"],
+    queryFn: () => publicPagesApi.bySlug("privacy-policy"),
+    staleTime: 60_000,
+  });
+
   return (
-    <LegalLayout
-      title="Privacy Policy"
-      breadcrumbLabel="Privacy"
-      updated="January 1, 2025"
-      intro="We respect your privacy. This page explains, in plain language, what we collect and what we do with it."
-      sections={[
-        { id: "info-we-collect", title: "Information We Collect", body: <>
-          <p>When you visit ThriftBeam, we collect basic technical information automatically: the pages you view, the device and browser you use, and approximate location based on IP address. If you subscribe to our newsletter or contact us, we also collect the email address and any other info you choose to send.</p>
-        </>},
-        { id: "how-we-use", title: "How We Use It", body: <>
-          <p>We use this information to (a) deliver and improve the site, (b) measure which articles are useful, and (c) respond to your messages. We never sell your personal information to third parties.</p>
-        </>},
-        { id: "cookies", title: "Cookies", body: <>
-          <p>We use a small number of cookies for analytics, advertising and remembering your theme preference. You can review and adjust your choices anytime via the cookie banner — or by clearing your browser cookies.</p>
-        </>},
-        { id: "third-parties", title: "Third Parties", body: <>
-          <p>We work with reputable analytics and ad providers (e.g. Google Analytics, AdSense) that may set their own cookies. Each provider has its own privacy policy, and you can opt out at the provider level if you prefer.</p>
-        </>},
-        { id: "your-rights", title: "Your Rights", body: <>
-          <p>Depending on where you live, you may have the right to access, correct, or delete your personal information, or to object to certain processing. To exercise these rights, email us at the address below.</p>
-        </>},
-        { id: "contact", title: "Contact", body: <>
-          <p>Privacy questions? Email <a href="mailto:hello@thriftbeam.com">hello@thriftbeam.com</a> and we'll respond within two business days.</p>
-        </>},
-      ]}
-    />
+    <div className="container-page py-10 md:py-16">
+      <Breadcrumbs items={[{ label: "Home", to: "/" }, { label: "Privacy" }]} />
+      <header className="mt-6 max-w-3xl">
+        <h1 className="text-3xl md:text-5xl font-bold">{data?.title || "Privacy Policy"}</h1>
+      </header>
+
+      <div className="mt-10 max-w-3xl">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : (
+          <article
+            className="prose prose-neutral dark:prose-invert max-w-none prose-tb"
+            dangerouslySetInnerHTML={{ __html: data?.content ?? "" }}
+          />
+        )}
+      </div>
+    </div>
   );
 }
