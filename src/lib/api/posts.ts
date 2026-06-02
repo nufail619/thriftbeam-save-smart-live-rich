@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { AUTHORS, CATEGORIES, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
+import { CATEGORIES, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
 
 export type PostListParams = {
   status?: "all" | AdminPostStatus;
@@ -30,7 +30,6 @@ function qs(params: Record<string, unknown>): string {
   return s ? `?${s}` : "";
 }
 
-// Tolerant: accepts {post: {...}} wrapper, snake_case fields, stringified tags.
 export function normalizePost(raw: unknown): AdminPost {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as any;
@@ -50,7 +49,7 @@ export function normalizePost(raw: unknown): AdminPost {
     id: p.id != null ? String(p.id) : "",
     title: p.title ?? "",
     slug: p.slug ?? "",
-    author: p.author ?? p.author_name ?? AUTHORS[0],
+    author: p.author ?? p.author_name ?? "ThriftBeam Team",
     category: p.category ?? p.category_name ?? CATEGORIES[0],
     status: (p.status as AdminPostStatus) ?? "draft",
     views: Number(p.views ?? 0),
@@ -98,4 +97,3 @@ export function normalizePosts(res: PostsListResponse | AdminPost[]): AdminPost[
   if (Array.isArray(res)) return res;
   return res?.items ?? res?.posts ?? [];
 }
-
