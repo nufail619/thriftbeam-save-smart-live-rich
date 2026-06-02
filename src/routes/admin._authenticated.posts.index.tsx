@@ -18,6 +18,7 @@ import AdminBadge from "@/components/admin/Badge";
 import EmptyState from "@/components/admin/EmptyState";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { postsApi, normalizePosts } from "@/lib/api/posts";
+import { cacheApi } from "@/lib/api/siteSettings";
 import { CATEGORIES, AUTHORS, type AdminPost, type AdminPostStatus } from "@/lib/mockAdminData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -56,7 +57,13 @@ function PostsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<{ ids: string[]; mode: "trash" | "delete" } | null>(null);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["posts"] });
+  const invalidate = async () => {
+    qc.invalidateQueries({ queryKey: ["posts"] });
+    qc.invalidateQueries({ queryKey: ["homepage"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["public-posts"] });
+    try { await cacheApi.clear(); } catch { /* non-fatal */ }
+  };
 
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: AdminPostStatus }) =>
