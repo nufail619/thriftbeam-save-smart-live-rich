@@ -66,13 +66,14 @@ export default function Footer() {
             <li><Link to="/contact" className="hover:text-primary transition-colors">Contact</Link></li>
             <li><Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
             <li><Link to="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link></li>
+            <li><Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
           </ul>
           <div className="flex gap-2 mt-4">
             {SOCIAL_DEFS.map(({ key, Icon, label }) => {
               const href = f.social?.[key];
               if (!href) return null;
               return (
-                <a
+                
                   key={label}
                   href={href}
                   target="_blank"
